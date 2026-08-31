@@ -2,7 +2,6 @@
 (function () {
   const tabsEl = document.getElementById('tabs');
   const contentEl = document.getElementById('content');
-  const titleEl = document.getElementById('pageTitle');
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const FADE = reduceMotion ? 0 : 300;
@@ -17,32 +16,87 @@
     return n;
   };
 
-  /* ---- die drei layouts -------------------------------------------------- */
-  // prose: leerzeilen trennen absaetze
+  /* ---- layout "prose": leerzeilen trennen absaetze ----------------------- */
   function renderProse(page, into) {
     page.body.split(/\n\s*\n/).filter((s) => s.trim())
       .forEach((chunk) => into.appendChild(el('p', 'lead', chunk.trim())));
   }
 
-  // list: jede zeile ein eintrag
-  function renderList(page, into) {
-    const ul = el('ul', 'plain-list');
-    page.body.split('\n').map((s) => s.trim()).filter(Boolean)
-      .forEach((line) => ul.appendChild(el('li', null, line)));
-    into.appendChild(ul);
+  /* ---- layout "list": gruppen und beschriftete zeilen -------------------- */
+  // "software:"      -> eroeffnet eine gruppe
+  // "mixing: hd 560s" -> beschriftete zeile in der laufenden gruppe
+  // alles andere      -> schlichter eintrag
+  function parseList(body) {
+    const groups = [];
+    let group = null;
+    const open = (title) => { group = { title, rows: [] }; groups.push(group); return group; };
+
+    for (const raw of body.split('\n')) {
+      const line = raw.trim();
+      if (!line) continue;
+
+      const heading = /^(.+?):$/.exec(line);
+      if (heading) { open(heading[1]); continue; }
+
+      if (!group) open(null);
+
+      const pair = /^(.+?):\s+(.+)$/.exec(line);
+      if (pair) group.rows.push({ key: pair[1], value: pair[2] });
+      else group.rows.push({ value: line });
+    }
+    return groups;
   }
 
-  // links: optionaler einleitungstext, danach die eintraege aus der db
+  function renderList(page, into) {
+    const wrap = el('div', 'list-groups');
+
+    for (const group of parseList(page.body)) {
+      const section = el('section', 'list-group');
+      if (group.title) section.appendChild(el('h2', 'list-head', group.title));
+
+      const dl = el('dl', 'list-pairs');
+      for (const row of group.rows) {
+        const line = el('div', 'list-pair');
+        // ohne schluessel bleibt die erste spalte leer, damit die
+        // werte-spalte ueber alle zeilen hinweg buendig bleibt
+        line.appendChild(el('dt', null, row.key ?? ''));
+        line.appendChild(el('dd', null, row.value));
+        dl.appendChild(line);
+      }
+      section.appendChild(dl);
+      wrap.appendChild(section);
+    }
+    into.appendChild(wrap);
+  }
+
+  /* ---- layout "links": optionaler text, danach die eintraege -------------- */
   function renderLinks(page, into) {
     if (page.body.trim()) renderProse(page, into);
+
+    if (!page.links.length) {
+      into.appendChild(el('p', 'lead empty', 'coming soon …'));
+      return;
+    }
+
     const row = el('div', 'link-row');
     for (const link of page.links) {
       const a = el('a', null, link.label);
-      a.href = link.url;
-      // externe ziele in neuem tab, mailto: und interne nicht
-      if (/^https?:/i.test(link.url)) {
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
+
+      if (link.mail) {
+        // die adresse steht nirgends am stueck — weder im markup noch in der
+        // api-antwort. sie wird erst gebaut, wenn jemand hinfasst.
+        const build = () => `mailto:${link.mail.user}@${link.mail.domain}`;
+        a.href = '#';
+        const arm = () => { a.href = build(); };
+        a.addEventListener('pointerenter', arm);
+        a.addEventListener('focus', arm);
+        a.addEventListener('click', (e) => { e.preventDefault(); location.href = build(); });
+      } else {
+        a.href = link.url;
+        if (/^https?:/i.test(link.url)) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
       }
       row.appendChild(a);
     }
@@ -50,6 +104,23 @@
   }
 
   const LAYOUTS = { prose: renderProse, list: renderList, links: renderLinks };
+  const paintInto = (page, into) => (LAYOUTS[page.layout] || renderProse)(page, into);
+
+  /* ---- hoehe einfrieren --------------------------------------------------- */
+  // alle reiter einmal durchmessen und die groesste hoehe festhalten. sonst
+  // springt die zentrierte spalte beim umschalten, und genau das soll sie
+  // nicht — die seite ist ein viewport und soll ruhig bleiben.
+  function lockHeight() {
+    contentEl.style.minHeight = '0px';
+    let max = 0;
+    for (const page of pages) {
+      contentEl.replaceChildren();
+      paintInto(page, contentEl);
+      max = Math.max(max, contentEl.scrollHeight);
+    }
+    contentEl.replaceChildren();
+    contentEl.style.minHeight = `${max}px`;
+  }
 
   /* ---- umschalten -------------------------------------------------------- */
   function show(index, { animate = true, push = true } = {}) {
@@ -64,10 +135,8 @@
     });
 
     const paint = () => {
-      titleEl.textContent = page.title;
-      document.title = `${page.title} ✧ lumis work`;
       contentEl.replaceChildren();
-      (LAYOUTS[page.layout] || renderProse)(page, contentEl);
+      paintInto(page, contentEl);
       contentEl.classList.remove('fading');
     };
 
@@ -122,8 +191,20 @@
       if (!pages.length) throw new Error('leer');
 
       renderTabs();
+
+      // erst messen, wenn die schriften stehen — sonst misst man den fallback
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      lockHeight();
       show(indexFromHash(), { animate: false, push: false });
+
       window.addEventListener('hashchange', () => show(indexFromHash(), { push: false }));
+
+      // beim resize aendert sich die spaltenzahl der setup-liste → neu messen
+      let t;
+      window.addEventListener('resize', () => {
+        clearTimeout(t);
+        t = setTimeout(() => { lockHeight(); show(current, { animate: false, push: false }); }, 200);
+      });
     } catch (err) {
       contentEl.replaceChildren(el('p', 'lead', 'could not load this page … try reloading'));
       console.error(err);

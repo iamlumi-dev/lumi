@@ -20,99 +20,97 @@ if (reset) {
 const { images, av } = generatePlaceholders();
 
 const CATEGORIES = [
-  { slug: 'generative', name: 'generative', description: 'code, der bilder wachsen lässt' },
-  { slug: 'sound', name: 'sound', description: 'alles, was klingt' },
-  { slug: 'motion', name: 'motion', description: 'bewegtbild und schleifen' },
-  { slug: 'writing', name: 'writing', description: 'notizen und texte' },
-  { slug: 'hardware', name: 'hardware', description: 'dinge zum anfassen' },
+  { slug: 'music', name: 'music', description: 'the main one' },
+  { slug: 'visuals', name: 'visuals', description: 'animation and video' },
+  { slug: 'artwork', name: 'artwork', description: 'covers and stills' },
+  { slug: 'generative', name: 'generative', description: 'code that grows pictures' },
+  { slug: 'notes', name: 'notes', description: 'written things' },
 ];
 
 // jede groesse mindestens einmal, jede medien-kombination mindestens einmal:
 // nur text, nur bild, nur audio, nur video, und gemischt.
 const POSTS = [
   {
-    slug: 'root-system', title: 'root system', size: 'large', pinned: 1,
-    summary: 'ein wachstumsalgorithmus, der von den bildschirmrändern nach innen kriecht.',
-    body: 'jede wurzel startet mit einer zufälligen dicke und verjüngt sich pro schritt. die richtung kommt aus perlin-noise, gelegentlich knickt sie hart ab. wird eine wurzel zu dünn, verblasst sie und wird entfernt.\n\ngeschrieben in p5.js, läuft als hintergrund dieser seite.',
-    categories: ['generative'],
+    slug: 'untitled-track-01', title: 'untitled track 01', size: 'large', pinned: 1,
+    summary: 'the one that has been ninety percent finished since february.',
+    body: 'built in fl studio over a weekend and then rebuilt over four months. the vocal take is the third one, which is usually the right one.\n\nstill unreleased. that one is on lumi.',
+    categories: ['music'],
     media: [
-      { kind: 'image', src: images.a, alt: 'wurzelartige linien, die nach innen wachsen', is_cover: 1 },
-      { kind: 'image', src: images.c, alt: 'dichteres wurzelgeflecht' },
+      { kind: 'image', src: images.a, alt: 'abstract cover artwork', is_cover: 1 },
+      ...(av.audio ? [{ kind: 'audio', src: av.audio, alt: 'rough mix', caption: 'rough mix, not final' }] : []),
     ],
   },
   {
-    slug: 'wheat-field', title: 'wheat field', size: 'wide',
-    summary: 'ein punktraster, das sehr langsam im wind steht.',
-    body: '22 pixel abstand, jeder punkt per 3d-noise verschoben. die z-achse läuft mit 0.005 pro frame weiter — das feld weht, ohne dass man die einzelne bewegung sieht.',
-    categories: ['generative', 'motion'],
-    media: [{ kind: 'image', src: images.b, alt: 'punktraster wie ein weizenfeld', is_cover: 1 }],
-  },
-  {
-    slug: 'drone-for-empty-rooms', title: 'drone for empty rooms', size: 'small',
-    summary: 'zwölf minuten, zwei oszillatoren, kein takt.',
-    body: 'aufgenommen an einem nachmittag mit einem modularen aufbau. sample-and-hold auf der filterfrequenz, sonst nichts.',
-    categories: ['sound'],
-    media: av.audio ? [{ kind: 'audio', src: av.audio, alt: 'ruhiger drone', caption: 'drone i' }] : [],
-  },
-  {
-    slug: 'slow-signal', title: 'slow signal', size: 'tall',
-    summary: 'bewegtbild aus einer einzigen mathematischen funktion.',
-    body: 'kein material, keine kamera. die helligkeit jedes pixels ist eine funktion von x, y und der zeit. mehr braucht es nicht.',
-    categories: ['motion', 'generative'],
+    slug: 'visualiser-for-a-friend', title: 'visualiser for a friend', size: 'wide',
+    summary: 'four minutes of animation in davinci resolve for someone else\u2019s song.',
+    body: 'no footage, no camera. everything is generated, keyed and graded in resolve until it moves the way the track does.',
+    categories: ['visuals', 'music'],
     media: av.video
-      ? [{ kind: 'video', src: av.video, poster: av.poster, alt: 'langsam driftendes muster', is_cover: 1 }]
-      : [{ kind: 'image', src: images.d, alt: 'vertikales muster', is_cover: 1 }],
+      ? [{ kind: 'video', src: av.video, poster: av.poster, alt: 'slowly drifting pattern', is_cover: 1 }]
+      : [{ kind: 'image', src: images.b, alt: 'still from the visualiser', is_cover: 1 }],
   },
   {
-    slug: 'notes-on-quiet-interfaces', title: 'notes on quiet interfaces', size: 'small',
-    summary: 'warum navigation verschwinden darf.',
-    body: 'die meisten oberflächen schreien. sie wollen, dass man klickt, und sagen es einem laut. ein interface darf aber auch warten.\n\nwenn die buttons erst sichtbar werden, sobald man den inhalt anschaut, passiert etwas: man liest zuerst. das ist die ganze idee.\n\ndas kostet nichts außer einer media query und ein bisschen geduld.',
-    categories: ['writing'],
+    slug: 'first-take', title: 'first take', size: 'small',
+    summary: 'singing since mid 2024. this is what that sounded like early on.',
+    body: 'kept for the record, not because it is good.',
+    categories: ['music'],
+    media: av.audio ? [{ kind: 'audio', src: av.audio, alt: 'early vocal take' }] : [],
+  },
+  {
+    slug: 'cover-studies', title: 'cover studies', size: 'tall',
+    summary: 'album covers in photoshop, mostly for records that do not exist yet.',
+    body: 'a series of layouts that started as an excuse to open photoshop again. some of them will end up on something.',
+    categories: ['artwork'],
+    media: [{ kind: 'image', src: images.d, alt: 'cover layout study', is_cover: 1 }],
+  },
+  {
+    slug: 'on-making-things-for-people', title: 'on making things for people', size: 'small',
+    summary: 'why a thing made with someone beats a thing made alone in a room.',
+    body: 'working alone is faster and worse. every time something has left the room it came back better than it went out.\n\nthat is the entire argument.',
+    categories: ['notes'],
     media: [],
   },
   {
-    slug: 'field-recorder-mk1', title: 'field recorder mk1', size: 'wide',
-    summary: 'ein rekorder aus resten, gebaut an einem wochenende.',
-    body: 'gehäuse aus einer alten kassettenbox, innen ein mikrocontroller und ein mikrofon-breakout. nimmt auf eine sd-karte auf, ein knopf, eine leuchtdiode.\n\nklingt schlechter als alles gekaufte und genau deswegen gut.',
-    categories: ['hardware', 'sound'],
-    media: [
-      { kind: 'image', src: images.f, alt: 'abstraktes muster als platzhalter für ein gerätefoto', is_cover: 1 },
-      ...(av.audio ? [{ kind: 'audio', src: av.audio, alt: 'testaufnahme', caption: 'testaufnahme, erster versuch' }] : []),
-    ],
+    slug: 'wheat-field', title: 'wheat field', size: 'wide',
+    summary: 'a grid of dots standing very slowly in the wind.',
+    body: '22 pixels apart, each point displaced by 3d noise. the z axis moves 0.005 per frame, so the field drifts without anyone catching it in the act.\n\nit is the background of this site.',
+    categories: ['generative', 'visuals'],
+    media: [{ kind: 'image', src: images.b, alt: 'a grid of dots like a wheat field', is_cover: 1 }],
   },
   {
     slug: 'everything-at-once', title: 'everything at once', size: 'banner',
-    summary: 'ein post, der bild, ton, bewegtbild und text gleichzeitig trägt — als beleg, dass nichts voneinander abhängt.',
-    body: 'die medien eines posts sind eine liste. bild, video und audio stehen gleichberechtigt nebeneinander, in beliebiger reihenfolge und beliebiger anzahl. ein post ohne medien ist genauso gültig wie einer mit fünf.',
-    categories: ['generative', 'sound', 'motion'],
+    summary: 'one post carrying image, sound, video and text at the same time \u2014 proof that none of them depend on each other.',
+    body: 'the media of a post are a list. image, video and audio sit next to each other as equals, in any order and any number. a post with no media is just as valid as one with five.',
+    categories: ['music', 'visuals', 'generative'],
     media: [
-      { kind: 'image', src: images.e, alt: 'breites wurzelmuster', is_cover: 1 },
-      ...(av.video ? [{ kind: 'video', src: av.video, poster: av.poster, alt: 'bewegtes muster' }] : []),
-      ...(av.audio ? [{ kind: 'audio', src: av.audio, alt: 'begleitender ton' }] : []),
+      { kind: 'image', src: images.e, alt: 'wide abstract pattern', is_cover: 1 },
+      ...(av.video ? [{ kind: 'video', src: av.video, poster: av.poster, alt: 'moving pattern' }] : []),
+      ...(av.audio ? [{ kind: 'audio', src: av.audio, alt: 'accompanying sound' }] : []),
     ],
   },
   {
-    slug: 'plotter-studies', title: 'plotter studies', size: 'small',
-    summary: 'linien, die eine maschine gezogen hat.',
-    body: 'serie von acht blättern, jedes eine variation derselben schleife mit anderem noise-seed.',
-    categories: ['generative', 'hardware'],
-    media: [{ kind: 'image', src: images.c, alt: 'linienzeichnung', is_cover: 1 }],
+    slug: 'root-system', title: 'root system', size: 'small',
+    summary: 'a growth algorithm that crawls in from the edges of the screen.',
+    body: 'every root starts at a random thickness and tapers with each step. perlin noise steers it, and now and then it snaps off in a new direction.',
+    categories: ['generative'],
+    media: [{ kind: 'image', src: images.c, alt: 'root-like lines growing inwards', is_cover: 1 }],
   },
   {
     slug: 'a-list-of-things-that-hum', title: 'a list of things that hum', size: 'small',
-    summary: 'kühlschrank, trafo, autobahn, kopf.',
-    body: 'eine sammlung, die nie fertig wird. der kühlschrank brummt in etwa auf einem tiefen c, die autobahn ist breiter und hat keine tonhöhe. der kopf kommt erst nachts dazu.',
-    categories: ['writing', 'sound'],
+    summary: 'fridge, transformer, motorway, head.',
+    body: 'a collection that will never be finished. the fridge hums somewhere around a low c, the motorway is wider and has no pitch at all. the head only joins in at night.',
+    categories: ['notes', 'music'],
     media: [],
   },
   {
     slug: 'terminal-green', title: 'terminal green', size: 'tall',
-    summary: 'eine palette aus fünf farben und die frage, ob das reicht.',
-    body: 'es reicht. unterschiede entstehen über helligkeit, deckkraft und kursivschrift — nicht über den farbton. sobald man eine zweite farbfamilie zulässt, fängt das feilschen an.',
-    categories: ['writing', 'generative'],
-    media: [{ kind: 'image', src: images.d, alt: 'hochformatiges punktmuster', is_cover: 1 }],
+    summary: 'five colours and the question of whether that is enough.',
+    body: 'it is enough. differences come from brightness, opacity and italics \u2014 not from hue. the moment a second colour family is allowed in, the haggling starts.',
+    categories: ['notes', 'generative'],
+    media: [{ kind: 'image', src: images.f, alt: 'tall dot pattern', is_cover: 1 }],
   },
 ];
+
 
 // die drei reiter der about-seite. gleiche tab_group, also erscheinen sie
 // nebeneinander und tauschen beim klick nur den mittelteil aus.
@@ -123,7 +121,12 @@ const PAGES = [
     layout: 'prose',
     tab_group: 'about',
     position: 0,
-    body: 'lumi baut dinge, die meistens grün sind und selten fertig.\n\ndieser text ist ein platzhalter — der echte kommt noch.',
+    body: [
+      'lumi makes things. music first — that is the main one. then the visuals for it: animation and video in davinci resolve, for own tracks and for the ones by artists lumi likes too much to leave alone. every so often an album cover happens in photoshop.',
+      'producing since mid 2022, singing since mid 2024. music has been the thing since about age five, film for roughly as long — which is how davinci ended up in the picture. photoshop came earlier: at ten, on dad’s laptop, strictly to make nonsense. the nonsense has improved.',
+      'the work gets taken very seriously. lumi does not. the one thing that does not fly here is doing it for the fame.',
+      'none of it is released yet. that one is on lumi. based in germany, always up for collaborations — a thing made with someone beats a thing made alone in a room.',
+    ].join('\n\n'),
   },
   {
     slug: 'about-contact',
@@ -131,12 +134,12 @@ const PAGES = [
     layout: 'links',
     tab_group: 'about',
     position: 1,
-    body: 'am ehesten per mail.',
-    links: [
-      { label: 'mail', url: 'mailto:hallo@example.com' },
-      { label: 'mastodon', url: 'https://example.com/@lumi' },
-      { label: 'github', url: 'https://example.com/lumi' },
-    ],
+    body: '',
+    // noch leer — der reiter zeigt dann von selbst "coming soon …".
+    // format, sobald die handles feststehen:
+    //   { label: 'mail', url: 'mailto:name@example.com' },   ← wird gegen scraper geschuetzt
+    //   { label: 'bandcamp', url: 'https://…' },
+    links: [],
   },
   {
     slug: 'about-setup',
@@ -144,9 +147,38 @@ const PAGES = [
     layout: 'list',
     tab_group: 'about',
     position: 2,
-    body: 'p5.js\nsupercollider\nein modularsystem, das nie fertig wird\nvim\nein plotter aus zweiter hand',
+    // im layout "list" gilt: eine zeile, die nur aus einem wort und einem
+    // doppelpunkt besteht, eroeffnet eine gruppe. "schluessel: wert" wird zu
+    // einer beschrifteten zeile, alles andere zu einem schlichten eintrag.
+    body: [
+      'software:',
+      'music: fl studio',
+      'visual: photoshop, davinci resolve',
+      'os: cachyos',
+      'os, fallback: windows 11 — for what linux cannot do',
+      '',
+      'desktop:',
+      'cpu: ryzen 5 7600x',
+      'gpu: rx 6600',
+      'memory: 64 gb ddr5',
+      'keyboard: endorfy thock v2 75%',
+      'mouse: roccat burst core white',
+      '',
+      'laptop:',
+      'cpu: intel i5 1334u, 13th gen',
+      'memory: 32 gb ddr4',
+      '',
+      'audio:',
+      'interface: yamaha ur22x',
+      'mixing: sennheiser hd 560s',
+      'recording: audio-technica ath-m20x',
+      'daily: nothing headphone (1), white',
+      'mic, casual: focusrite vocaster dm14v',
+      'mic, recording: lewitt lct 240 pro',
+    ].join('\n'),
   },
 ];
+
 
 // ---- schreiben ------------------------------------------------------------
 const insertCategory = db.prepare(

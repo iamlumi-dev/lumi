@@ -543,13 +543,16 @@ body.post #selections { margin-top: 2.5rem; justify-content: flex-start; max-wid
     margin-bottom: 1.5rem;
 }
 
-/* der inhalt bekommt eine feste mindesthoehe: beim umschalten soll die
-   zentrierte spalte nicht springen. es wird hier nicht gescrollt. */
+/* die mindesthoehe setzt about.js auf den hoechsten reiter — dadurch
+   springt die zentrierte spalte beim umschalten nicht. der wert hier ist
+   nur die notbremse, falls das messen ausfaellt. es wird nicht gescrollt. */
 body.tabbed #content {
-    min-height: 34vh;
+    min-height: 30vh;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    /* der inhalt sitzt mittig in der reservierten hoehe — sonst klebt der
+       kuerzeste reiter oben und darunter steht eine leere flaeche. */
+    justify-content: center;
     align-items: center;
     gap: 0.9rem;
     transition: opacity 0.3s ease-in-out;
@@ -557,17 +560,62 @@ body.tabbed #content {
 
 #content.fading { opacity: 0; }
 
-#content .lead { max-width: 46ch; margin: 0; }
-
-/* setup-liste: keine punkte, nur zeilen */
-.plain-list {
-    list-style: none;
+/* fliesstext linksbuendig in einer zentrierten spalte: mittig geflatterter
+   satz ist ab dem zweiten absatz muehsam zu lesen. */
+body.tabbed .lead {
+    max-width: 54ch;
     margin: 0;
-    padding: 0;
-    line-height: 1.6;
+    text-align: left;
+    line-height: 1.45;
 }
 
-/* kontakt: die links in einer reihe, umbrechend */
+body.tabbed .lead.empty { text-align: center; font-style: italic; opacity: 0.6; }
+
+/*--- setup-liste ---*/
+.list-groups {
+    width: 100%;
+    display: grid;
+    /* breit genug, dass die werte nicht nach zwei woertern umbrechen */
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 1.4rem 2.5rem;
+    align-items: start;
+    text-align: left;
+}
+
+.list-group { min-width: 0; }
+
+.list-head {
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--titleclr);
+    margin: 0 0 0.4rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 1.5px solid var(--altbgclr);
+}
+
+/* zweispaltiges raster pro gruppe: die schluesselspalte ist genau so breit
+   wie ihr laengster eintrag, dadurch stehen alle werte buendig untereinander
+   und kein schluessel bricht um. */
+.list-pairs {
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 0.8rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* die zeile selbst verschwindet aus dem layout, dt und dd werden
+   dadurch direkte kinder des rasters */
+.list-pair { display: contents; }
+
+/* schluesselspalte gedimmt, damit die werte die zeile tragen */
+.list-pair dt { opacity: 0.5; }
+
+.list-pair dd { margin: 0; min-width: 0; }
+
+/*--- kontakt ---*/
 .link-row {
     display: flex;
     flex-wrap: wrap;

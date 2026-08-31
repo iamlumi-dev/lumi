@@ -16,7 +16,8 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
 - **`/portfolio/<slug>`** — Detailseite eines Posts.
 - **`/about/`** — drei Reiter (whoami / contact / setup), die den Mittelteil
   austauschen statt zu scrollen. Inhalt kommt aus der Datenbank, Reiter sind
-  per `#hash` verlinkbar. Der Text ist noch ein Platzhalter.
+  per `#hash` verlinkbar. `about.js` misst beim Laden alle Reiter durch und
+  friert die Höhe auf den höchsten ein, damit beim Umschalten nichts springt.
 - **JSON-API** unter `/api` — liefert nur veröffentlichte Inhalte, nur lesend.
 
 ## Was noch fehlt
@@ -24,8 +25,9 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
 - **Admin-Login und Post-Editor.** Datenbank und Server sind darauf vorbereitet
   (Tabelle `users`, Einhängepunkte in `server/index.js`), gebaut ist es noch nicht.
   Details in [`SETUP.md`](SETUP.md#was-noch-fehlt).
-- **Der About-Text.** Struktur steht, Inhalt ist Platzhalter — die drei
-  Zeilen in `scripts/seed.js` bzw. die Tabelle `pages` ersetzen.
+- **Die Kontaktlinks.** Der Reiter zeigt „coming soon …", solange keine Links
+  in der Tabelle `links` stehen. Format steht als Kommentar in `scripts/seed.js`.
+- **Die Demo-Posts** im Portfolio sind Platzhalter und wollen ersetzt werden.
 
 ---
 
@@ -101,7 +103,28 @@ data/             SQLite-Datei (nicht im Repo)
 |---|---|
 | `prose` | Leerzeilen trennen Absätze |
 | `list` | jede Zeile ein Listeneintrag |
-| `links` | `body` als optionaler Einleitungstext, Einträge aus `links` |
+| `links` | `body` als optionaler Einleitungstext, Einträge aus `links`. Ohne Einträge: „coming soon …" |
+
+Im Layout `list` gilt eine kleine Konvention, damit sich Gruppen ohne HTML
+tippen lassen:
+
+| Zeile | wird zu |
+|---|---|
+| `audio:` | Überschrift, eröffnet eine Gruppe |
+| `mixing: hd 560s` | beschriftete Zeile in der laufenden Gruppe |
+| alles andere | schlichter Eintrag |
+
+### Mailadressen
+
+Links, deren URL mit `mailto:` beginnt, werden von der API **zerlegt**
+ausgeliefert (`{ user, domain }` statt `url`). Weder das HTML noch die
+JSON-Antwort enthalten jemals `name@domain` am Stück; der Browser setzt die
+Adresse erst zusammen, wenn jemand den Link berührt oder fokussiert.
+
+Das hält Harvester ab, die Quelltext oder API-Antworten nach Mailmustern
+durchsuchen — also die große Mehrheit. Gegen einen Scraper, der die Seite
+rendert und JavaScript ausführt, hilft es **nicht**. Mehr ist ohne
+Kontaktformular auch nicht zu holen.
 
 Ein Post kann **nur Text**, **nur Bild**, **nur Ton**, **nur Video** oder jede
 Mischung davon sein — nichts hängt voneinander ab. Ein Post ohne Medien ist
@@ -164,7 +187,13 @@ braucht beides. Bewusst abgewichen wird an diesen Stellen:
     steht neben dem Überschriften-Grün ein dritter Grünton in der Filterleiste.
     `--acntclr` bleibt für die Hover-Akzente reserviert (Kachelrahmen,
     Kacheltitel, Prev/Next, Fokus-Outline, Audio-Regler).
-12. **Nur ein Hintergrund-Sketch.** Der Guide würfelt bei jedem Besuch zwischen
+12. **Die About-Seite hat Reiter.** Der Guide kennt nur eine Spalte ohne
+    Umschalter. Die Alternative wäre Scrollen gewesen — Reiter halten die
+    Ein-Viewport-Regel, kosten dafür einen Klick.
+13. **Fließtext auf der About-Seite ist linksbündig** in einer zentrierten
+    Spalte. Der Guide zentriert alles; ab dem zweiten Absatz ist mittig
+    geflatterter Satz aber mühsam zu lesen.
+14. **Nur ein Hintergrund-Sketch.** Der Guide würfelt bei jedem Besuch zwischen
     „roots" und „wheat"; „roots" ist vorerst stillgelegt. Die Datei liegt
     weiter unter `public/js/roots.js` — zum Reaktivieren genügt es, sie in
     `site.js` wieder in die Liste `scripts` aufzunehmen.

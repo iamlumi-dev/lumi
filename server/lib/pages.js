@@ -18,6 +18,20 @@ const selectLinks = db.prepare(`
   SELECT label, url FROM links WHERE page_slug = ? ORDER BY position ASC, id ASC
 `);
 
+// mailadressen werden zerlegt ausgeliefert: weder im html noch in der
+// api-antwort steht jemals "name@domain" am stueck. der browser setzt sie
+// erst beim klick zusammen.
+//
+// das haelt harvester ab, die quelltext oder json nach mailmustern absuchen —
+// also die grosse mehrheit. gegen einen scraper, der die seite rendert und
+// javascript ausfuehrt, hilft es nicht. mehr ist ohne kontaktformular auch
+// nicht drin.
+function protectMail(link) {
+  const m = /^mailto:([^@]+)@(.+)$/i.exec(link.url.trim());
+  if (!m) return { label: link.label, url: link.url };
+  return { label: link.label, mail: { user: m[1], domain: m[2] } };
+}
+
 function hydrate(row) {
   if (!row) return null;
   return {
@@ -27,7 +41,7 @@ function hydrate(row) {
     layout: row.layout,
     updatedAt: row.updated_at,
     // nur das 'links'-layout braucht sie; bei den anderen bleibt die liste leer
-    links: row.layout === 'links' ? selectLinks.all(row.slug) : [],
+    links: row.layout === 'links' ? selectLinks.all(row.slug).map(protectMail) : [],
   };
 }
 
