@@ -242,3 +242,18 @@ img.media-thumb { display: block; }
     .admin-user { margin-left: 0; width: 100%; }
     .media-row { flex-wrap: wrap; }
 }
+
+/*--- mitwachsende textfelder (splashes) ---*/
+/* kein umbruch im editor, damit man sieht, was auf der seite passiert:
+   dort laeuft der text ja auch ueber den rand hinaus. */
+.row textarea,
+.form-row textarea {
+    min-height: 0;
+    resize: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: pre;
+    line-height: 1.4;
+}
+
+.form-row textarea { flex: 1 1 auto; }

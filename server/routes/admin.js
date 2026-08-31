@@ -326,14 +326,16 @@ admin.post('/pages/:slug/links/order', handle((req, res) => {
 admin.get('/splashes', (req, res) => res.json({ splashes: store.listSplashes() }));
 
 admin.post('/splashes', handle((req, res) => {
-  store.createSplash(str(req.body?.text, 'splash', { min: 1, max: 120 }));
+  // kein laengenlimit: ein splash darf ueber den bildschirmrand hinauslaufen.
+  // die 10000 zeichen aus str() bleiben als reine notbremse stehen.
+  store.createSplash(str(req.body?.text, 'splash', { min: 1, trim: false }));
   res.status(201).json({ splashes: store.listSplashes() });
 }));
 
 admin.patch('/splashes/:id', handle((req, res) => {
   const body = req.body || {};
   const ok = store.updateSplash(int(req.params.id, 'id'), {
-    text: str(body.text, 'splash', { min: 1, max: 120 }),
+    text: str(body.text, 'splash', { min: 1, trim: false }),
     active: bool(body.active),
   });
   if (!ok) return res.status(404).json({ error: 'nicht gefunden' });

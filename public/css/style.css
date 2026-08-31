@@ -788,9 +788,35 @@ input[type="checkbox"] { accent-color: var(--acntclr); }
     cursor: pointer;
     text-align: center;
     line-height: 1.4;
+    /* pre: bricht nur dort um, wo im editor ein enter gesetzt wurde.
+       ein langer splash laeuft also ueber den bildschirmrand hinaus. */
+    white-space: pre;
+}
+
+/* damit der ueberstehende splash keine waagerechte bildlaufleiste erzeugt.
+   der clip muss am html-element haengen, nicht am body: "clip" wird — anders
+   als "hidden" — nicht vom body an den viewport weitergereicht, die seite
+   liesse sich sonst weiter seitwaerts scrollen.
+   bewusst nur auf der startseite, damit position:sticky im editor heil bleibt. */
+html.home { overflow-x: hidden; }
+
+/* clip statt hidden, wo es geht: hidden wuerde overflow-y auf auto zwingen */
+@supports (overflow-x: clip) {
+    html.home { overflow-x: clip; }
 }
 
 .splash:hover { font-style: italic; }
+
+/* der splash sitzt in einem bildschirmbreiten kasten, nicht in der 50%-spalte.
+   "safe center" zentriert ihn, solange er passt, und kippt bei ueberlauf auf
+   linksbuendig — sonst waere bei einem sehr langen splash auch der anfang weg. */
+.splash-wrap {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    display: flex;
+    justify-content: center;
+    justify-content: safe center;
+}
 
 /*=== TERMINAL ===*/
 /* das hidden-attribut setzt display:none nur ueber das browser-stylesheet —

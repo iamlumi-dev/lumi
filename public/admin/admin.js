@@ -73,6 +73,20 @@
     return el('input', { type: 'text', name, value: value ?? '', ...attrs });
   }
 
+  // ein textfeld, das mit seinem inhalt mitwaechst, statt eine bildlaufleiste
+  // zu bekommen — gebraucht dort, wo enter erlaubt ist, die zeilen aber
+  // meistens kurz bleiben.
+  function grow(node) {
+    const fit = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    node.addEventListener('input', fit);
+    // beim ersten anzeigen ist die hoehe noch nicht messbar
+    requestAnimationFrame(fit);
+    return node;
+  }
+
   function textarea(name, value, rows = 6) {
     const t = el('textarea', { name, rows });
     t.value = value ?? '';
@@ -631,11 +645,32 @@
     async render(into) {
       const { splashes } = await api('/admin/splashes');
       into.appendChild(el('h2', { text: 'splash texts' }));
-      into.appendChild(el('p', { class: 'dim', text: 'the line under the title on the home page. one is picked at random on every visit, and clicking it rolls another.' }));
+      into.appendChild(el('p', { class: 'dim', text: 'the line under the title on the home page. one is picked at random on every visit, and clicking it rolls another. no length limit, and the text never wraps — it just runs off the edge. shift+enter puts in a line break.' }));
+
+      // die eingabezeile steht oben: hier wird viel angelegt und selten
+      // in der bestehenden liste gesucht.
+      const fresh = grow(el('textarea', { name: 'newSplash', rows: 1, placeholder: 'a new splash' }));
+      const addSplash = guard(async () => {
+        if (!fresh.value.trim()) return;
+        await api('/admin/splashes', { method: 'POST', body: { text: fresh.value } });
+        toast('added');
+        show('splashes');
+      });
+      // enter legt an, shift+enter bricht die zeile um
+      fresh.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addSplash(); }
+      });
+
+      into.appendChild(el('div', { class: 'form-row' }, [
+        fresh,
+        el('button', { type: 'button', class: 'roomy', text: 'add', onclick: addSplash }),
+      ]));
 
       const rows = el('div', { class: 'rows' });
       for (const splash of splashes) {
-        const text = input('text', splash.text, { maxlength: 120 });
+        const text = grow(el('textarea', { name: 'text', rows: 1 }));
+        text.value = splash.text;
+
         const active = el('input', { type: 'checkbox' });
         active.checked = splash.active;
 
@@ -647,6 +682,10 @@
         });
         text.addEventListener('change', save);
         active.addEventListener('change', save);
+        // auch hier: enter speichert, shift+enter bricht um
+        text.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); text.blur(); }
+        });
 
         rows.appendChild(el('div', { class: `row${splash.active ? '' : ' muted'}` }, [
           el('div', { class: 'row-main' }, [text]),
@@ -660,19 +699,6 @@
         ]));
       }
       into.appendChild(rows);
-
-      const fresh = input('newSplash', '', { placeholder: 'a new splash', maxlength: 120 });
-      into.appendChild(el('h3', { text: 'add' }));
-      into.appendChild(el('div', { class: 'form-row' }, [
-        fresh,
-        el('button', { type: 'button', class: 'roomy', text: 'add',
-          onclick: guard(async () => {
-            if (!fresh.value.trim()) return;
-            await api('/admin/splashes', { method: 'POST', body: { text: fresh.value } });
-            toast('added');
-            show('splashes');
-          }) }),
-      ]));
     },
   };
 
@@ -725,6 +751,9 @@
     const fresh = document.createDocumentFragment();
     await section.render(fresh);
     panel.replaceChildren(fresh);
+
+    // wo es eine anlegen-zeile ganz oben gibt, steht der cursor gleich drin
+    panel.querySelector('.form-row input[name^="new"]')?.focus();
   });
 
   nav.addEventListener('click', (e) => {
