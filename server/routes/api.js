@@ -1,6 +1,7 @@
 // oeffentliche, lesende api. alles was hier raus geht ist bereits veroeffentlicht.
 import { Router } from 'express';
 import { listPosts, getPost, listCategories, neighbours, POST_SIZES } from '../lib/posts.js';
+import { getPage, getPageGroup } from '../lib/pages.js';
 
 export const api = Router();
 
@@ -32,6 +33,20 @@ api.get('/posts/:slug', cache(30), (req, res) => {
   const post = getPost(req.params.slug);
   if (!post) return res.status(404).json({ error: 'not found' });
   res.json({ post, ...neighbours(post.slug) });
+});
+
+// --- freitext-seiten --------------------------------------------------------
+// eine gruppe = die reiter einer seite. /about/ holt sich hierueber 'about'.
+api.get('/pages/group/:group', cache(60), (req, res) => {
+  const pages = getPageGroup(req.params.group);
+  if (!pages.length) return res.status(404).json({ error: 'not found' });
+  res.json({ pages });
+});
+
+api.get('/pages/:slug', cache(60), (req, res) => {
+  const page = getPage(req.params.slug);
+  if (!page) return res.status(404).json({ error: 'not found' });
+  res.json({ page });
 });
 
 api.use((req, res) => res.status(404).json({ error: 'not found' }));

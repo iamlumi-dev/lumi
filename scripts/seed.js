@@ -13,7 +13,7 @@ if (existing > 0 && !reset) {
 }
 
 if (reset) {
-  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM pages;');
+  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages;');
   console.log('… alte inhalte gelöscht');
 }
 
@@ -114,11 +114,37 @@ const POSTS = [
   },
 ];
 
+// die drei reiter der about-seite. gleiche tab_group, also erscheinen sie
+// nebeneinander und tauschen beim klick nur den mittelteil aus.
 const PAGES = [
   {
     slug: 'about',
     title: 'whoami',
-    body: 'lumi baut dinge, die meistens grün sind und selten fertig.\n\ndieser text ist ein platzhalter — den echten schreiben wir noch gemeinsam.',
+    layout: 'prose',
+    tab_group: 'about',
+    position: 0,
+    body: 'lumi baut dinge, die meistens grün sind und selten fertig.\n\ndieser text ist ein platzhalter — der echte kommt noch.',
+  },
+  {
+    slug: 'about-contact',
+    title: 'contact',
+    layout: 'links',
+    tab_group: 'about',
+    position: 1,
+    body: 'am ehesten per mail.',
+    links: [
+      { label: 'mail', url: 'mailto:hallo@example.com' },
+      { label: 'mastodon', url: 'https://example.com/@lumi' },
+      { label: 'github', url: 'https://example.com/lumi' },
+    ],
+  },
+  {
+    slug: 'about-setup',
+    title: 'setup',
+    layout: 'list',
+    tab_group: 'about',
+    position: 2,
+    body: 'p5.js\nsupercollider\nein modularsystem, das nie fertig wird\nvim\nein plotter aus zweiter hand',
   },
 ];
 
@@ -137,8 +163,12 @@ const insertMedia = db.prepare(`
 const linkCategory = db.prepare(
   'INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)'
 );
-const insertPage = db.prepare(
-  'INSERT INTO pages (slug, title, body) VALUES (@slug, @title, @body)'
+const insertPage = db.prepare(`
+  INSERT INTO pages (slug, title, body, layout, tab_group, position)
+  VALUES (@slug, @title, @body, @layout, @tab_group, @position)
+`);
+const insertLink = db.prepare(
+  'INSERT INTO links (page_slug, label, url, position) VALUES (?, ?, ?, ?)'
 );
 
 db.transaction(() => {
@@ -176,7 +206,14 @@ db.transaction(() => {
     p.categories.forEach((slug) => linkCategory.run(postId, catId.get(slug)));
   });
 
-  PAGES.forEach((pg) => insertPage.run(pg));
+  PAGES.forEach((pg) => {
+    insertPage.run({
+      slug: pg.slug, title: pg.title, body: pg.body,
+      layout: pg.layout, tab_group: pg.tab_group, position: pg.position,
+    });
+    (pg.links || []).forEach((l, i) => insertLink.run(pg.slug, l.label, l.url, i));
+  });
 })();
 
-console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seite(n) angelegt`);
+const linkCount = PAGES.reduce((n, p) => n + (p.links || []).length, 0);
+console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seiten, ${linkCount} links angelegt`);

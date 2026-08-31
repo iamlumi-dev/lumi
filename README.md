@@ -14,7 +14,9 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
   filterbar nach frei anlegbaren Kategorien, sortierbar nach neuste/älteste/a–z.
   Filter und Sortierung stehen in der URL und sind damit teilbar.
 - **`/portfolio/<slug>`** — Detailseite eines Posts.
-- **`/about/`** — Platzhalter, Inhalt kommt noch.
+- **`/about/`** — drei Reiter (whoami / contact / setup), die den Mittelteil
+  austauschen statt zu scrollen. Inhalt kommt aus der Datenbank, Reiter sind
+  per `#hash` verlinkbar. Der Text ist noch ein Platzhalter.
 - **JSON-API** unter `/api` — liefert nur veröffentlichte Inhalte, nur lesend.
 
 ## Was noch fehlt
@@ -22,7 +24,8 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
 - **Admin-Login und Post-Editor.** Datenbank und Server sind darauf vorbereitet
   (Tabelle `users`, Einhängepunkte in `server/index.js`), gebaut ist es noch nicht.
   Details in [`SETUP.md`](SETUP.md#was-noch-fehlt).
-- **Der About-Text.** Steht als Platzhalter in der Tabelle `pages`.
+- **Der About-Text.** Struktur steht, Inhalt ist Platzhalter — die drei
+  Zeilen in `scripts/seed.js` bzw. die Tabelle `pages` ersetzen.
 
 ---
 
@@ -37,7 +40,8 @@ npm run dev                    # http://localhost:3000
 ```
 
 `npm run db:seed -- --reset` überschreibt die Demo-Inhalte, `npm run db:migrate`
-legt nur das Schema an (idempotent, gefahrlos wiederholbar).
+legt nur das Schema an (idempotent, gefahrlos wiederholbar) und trägt dabei
+auch Spalten nach, die zu einer schon bestehenden Tabelle dazugekommen sind.
 
 ---
 
@@ -51,11 +55,12 @@ server/
   schema.sql      Datenbankschema, idempotent
   routes/api.js   öffentliche, lesende API
   lib/posts.js    Datenzugriff auf Posts, Medien, Kategorien
+  lib/pages.js    Datenzugriff auf Freitextseiten und Links
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
 
 public/
   index.html          Homepage
-  about/index.html    Über mich
+  about/index.html    Über mich, mit Reitern
   portfolio/index.html   Grid
   portfolio/post.html    Hülle der Detailseite
   404.html
@@ -64,6 +69,7 @@ public/
   js/roots.js         generativer Hintergrund — derzeit stillgelegt
   js/wheat.js         generativer Hintergrund — der aktive
   js/portfolio.js     Grid, Filter, Sortierung
+  js/about.js         Reiter der About-Seite
   js/post.js          Detailseite inkl. eigenem Audio-Player
   uploads/            hochgeladene Medien (nicht im Repo)
 
@@ -85,8 +91,17 @@ data/             SQLite-Datei (nicht im Repo)
 | `media` | 0..n Medien pro Post — `image`, `video` oder `audio`, frei mischbar |
 | `categories` | frei anlegbare Kategorien |
 | `post_categories` | n:m-Verknüpfung |
-| `pages` | Freitextseiten wie „about" |
+| `pages` | Freitextseiten. Gleiche `tab_group` = Reiter derselben Seite, `position` bestimmt die Reihenfolge, `layout` die Darstellung |
+| `links` | Kontakt-/Social-Einträge einer Seite (Label + URL) |
 | `users` | Admin-Zugang (noch ungenutzt, nur Passwort-**Hash**) |
+
+### Seiten-Layouts
+
+| `layout` | rendert |
+|---|---|
+| `prose` | Leerzeilen trennen Absätze |
+| `list` | jede Zeile ein Listeneintrag |
+| `links` | `body` als optionaler Einleitungstext, Einträge aus `links` |
 
 Ein Post kann **nur Text**, **nur Bild**, **nur Ton**, **nur Video** oder jede
 Mischung davon sein — nichts hängt voneinander ab. Ein Post ohne Medien ist

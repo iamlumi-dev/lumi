@@ -105,6 +105,11 @@ npm run db:migrate      # Schema — idempotent, gefahrlos wiederholbar
 npm run db:seed         # Demo-Inhalte, nur wenn die DB noch leer ist
 ```
 
+`db:migrate` legt fehlende Tabellen und Indizes an **und** trägt Spalten nach,
+die zu einer schon bestehenden Tabelle dazugekommen sind (`CREATE TABLE IF NOT
+EXISTS` allein würde eine vorhandene Tabelle unverändert lassen). Nach jedem
+`git pull` also mit ausführen — die Liste steht oben in `scripts/migrate.js`.
+
 `npm run db:seed -- --reset` **löscht alle Posts, Kategorien und Seiten** und
 legt die Demo-Inhalte neu an. Auf einem Produktivsystem mit echten Inhalten
 also nicht ausführen.

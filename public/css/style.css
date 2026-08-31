@@ -536,6 +536,48 @@ body.post #selections { margin-top: 2.5rem; justify-content: flex-start; max-wid
 /*=== HOMEPAGE ===*/
 #content .lead { line-height: 1.4; }
 
+/*=== ABOUT ===*/
+/* die reiter sitzen zwischen titel und inhalt */
+#tabs {
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+/* der inhalt bekommt eine feste mindesthoehe: beim umschalten soll die
+   zentrierte spalte nicht springen. es wird hier nicht gescrollt. */
+body.tabbed #content {
+    min-height: 34vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.9rem;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#content.fading { opacity: 0; }
+
+#content .lead { max-width: 46ch; margin: 0; }
+
+/* setup-liste: keine punkte, nur zeilen */
+.plain-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* kontakt: die links in einer reihe, umbrechend */
+.link-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem 1.2rem;
+}
+
+.link-row a { transition: color 0.3s ease-in-out; }
+.link-row a:hover { color: var(--acntclr); }
+
 /*=== RESPONSIVE ===*/
 /* das grid faellt in stufen auf weniger spalten zurueck. die spans werden
    dabei so gekappt, dass keine kachel breiter als das raster wird. */

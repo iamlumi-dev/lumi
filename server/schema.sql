@@ -77,9 +77,36 @@ CREATE TABLE IF NOT EXISTS users (
 -- ---- freitext-inhalte (about me etc.) -------------------------------------
 -- damit lumi spaeter auch die "ueber mich"-seite im admin bearbeiten kann,
 -- ohne dass jemand html anfassen muss.
+--
+-- mehrere seiten mit derselben tab_group bilden zusammen eine seite mit
+-- reitern: /about/ zeigt alle pages mit tab_group = 'about', sortiert nach
+-- position, und tauscht beim klick nur den mittelteil aus.
+--
+-- layout bestimmt, wie der body gerendert wird:
+--   prose  leerzeilen trennen absaetze
+--   list   jede zeile ein listeneintrag
+--   links  body ist optionaler einleitungstext, die eintraege kommen
+--          aus der tabelle links (weil dort echte urls gebraucht werden)
 CREATE TABLE IF NOT EXISTS pages (
-  slug       TEXT PRIMARY KEY,                   -- z.b. 'about'
-  title      TEXT NOT NULL,
+  slug       TEXT PRIMARY KEY,                   -- z.b. 'about', 'about-contact'
+  title      TEXT NOT NULL,                      -- zugleich die beschriftung des reiters
   body       TEXT NOT NULL DEFAULT '',
+  layout     TEXT NOT NULL DEFAULT 'prose'
+               CHECK (layout IN ('prose','list','links')),
+  tab_group  TEXT NOT NULL DEFAULT '',
+  position   INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_pages_group ON pages (tab_group, position);
+
+-- ---- links (kontakt, socials) ---------------------------------------------
+CREATE TABLE IF NOT EXISTS links (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  page_slug TEXT    NOT NULL REFERENCES pages(slug) ON DELETE CASCADE,
+  label     TEXT    NOT NULL,
+  url       TEXT    NOT NULL,
+  position  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_links_page ON links (page_slug, position);

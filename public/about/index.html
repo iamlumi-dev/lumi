@@ -4,26 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>whoami ✧ lumis work</title>
-  <meta name="description" content="wer lumi ist.">
+  <meta name="description" content="wer lumi ist, womit lumi arbeitet und wie man lumi erreicht.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Xanh+Mono:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="tabbed">
   <div id="p5-bg-container"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 
   <div id="middleSection" class="wide">
     <header>
-      <div id="title"><h1>whoami</h1></div>
+      <div id="title"><h1 id="pageTitle">whoami</h1></div>
     </header>
 
-    <!-- platzhalter — den echten text schreiben wir noch gemeinsam.
-         der inhalt kommt aus der tabelle "pages" (slug: about) und ist
-         damit spaeter im admin bearbeitbar. -->
+    <!-- reiter und inhalt kommen aus der tabelle "pages" (tab_group: about).
+         der mittelteil wird ausgetauscht, gescrollt wird nicht. -->
+    <div id="tabs" class="control-row" role="tablist" aria-label="sections"></div>
+
     <main id="content">
-      <p class="lead">coming soon …</p>
+      <p class="lead">loading …</p>
     </main>
 
     <nav id="selections">
@@ -35,5 +36,6 @@
   <footer><p>&copy; made by lumi 2026</p></footer>
 
   <script src="/js/site.js" defer></script>
+  <script src="/js/about.js" defer></script>
 </body>
 </html>
