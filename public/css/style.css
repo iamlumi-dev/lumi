@@ -660,3 +660,282 @@ body.tabbed .lead.empty { text-align: center; font-style: italic; opacity: 0.6; 
         transition-duration: 0.01ms !important;
     }
 }
+
+/*=== FORMULARE ===*/
+/* nur im login und im editor gebraucht — die oeffentliche seite hat keine. */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.field > span {
+    font-size: 0.85rem;
+    opacity: 0.55;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="url"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.9rem;
+    color: var(--txtclr);
+    background-color: transparent;
+    border: 1.5px solid var(--altbgclr);
+    border-radius: 0;
+    padding: 0.4rem 0.5rem;
+    width: 100%;
+    transition: border-color 0.3s ease-in-out;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--acntclr);
+    outline: none;
+}
+
+textarea { resize: vertical; min-height: 6rem; line-height: 1.5; }
+
+/* die pfeile der zahlenfelder passen nicht ins bild */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+
+input[type="checkbox"] { accent-color: var(--acntclr); }
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+#msg { font-size: 0.85rem; opacity: 0.6; font-style: italic; }
+/* fehler ohne zweite farbe: der guide kennt nur gruen — also ueber
+   helligkeit und kursivschrift unterscheiden */
+#msg.bad { opacity: 1; color: var(--titleclr); }
+
+/*=== YOUTUBE ===*/
+/* facade: standbild plus knopf. der player wird erst nach einem klick
+   eingehaengt, vorher laedt nichts von youtube ausser dem vorschaubild. */
+.yt {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border: 1.5px solid var(--altbgclr);
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.yt-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: grayscale(1) brightness(0.85) contrast(1.05);
+    transition: filter 0.5s ease-in-out;
+}
+
+.yt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: var(--altbgclr);
+    mix-blend-mode: color;
+    opacity: 0.9;
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
+}
+
+.yt:hover .yt-thumb { filter: none; }
+.yt:hover::after { opacity: 0; }
+
+.yt-play {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    z-index: 2;
+}
+
+.yt-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/*=== SPLASH ===*/
+/* die zeile unter dem titel ist ein knopf, damit ein klick nachwuerfelt —
+   sieht aber aus wie fliesstext, nicht wie ein bedienelement. */
+.splash {
+    font-family: "Xanh Mono", monospace;
+    font-size: inherit;
+    color: var(--txtclr);
+    background: none;
+    border: none;
+    padding: 0;
+    min-width: 0;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.splash:hover { font-style: italic; }
+
+/*=== TERMINAL ===*/
+/* das hidden-attribut setzt display:none nur ueber das browser-stylesheet —
+   jede eigene display-regel schlaegt es. deshalb hier ausdruecklich, sonst
+   stuende das fenster von anfang an offen. */
+[hidden] { display: none !important; }
+
+/* eingeklappt: exakt die footer-zeile, die hier vorher stand. */
+.term-min-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 0.4rem 0.6rem;
+    padding: 0;
+    min-width: 0;
+    background: none;
+    border: none;
+    color: var(--titleclr);
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.term-min-bar:hover { font-style: italic; }
+
+/* ausgeklappt: ein fenster. rechteckig, flach, eine linie als rahmen —
+   dieselben regeln wie ueberall sonst. */
+.term {
+    position: fixed;
+    left: 0.6rem;
+    bottom: 0.6rem;
+    z-index: 5;
+    width: min(94vw, 560px);
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid var(--altbgclr);
+    background-color: var(--bgclr);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.term.dragging { border-color: var(--acntclr); }
+
+/*--- titelleiste ---*/
+.term-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background-color: var(--altbgclr);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;   /* sonst scrollt das ziehen die seite */
+}
+
+.term.dragging .term-bar { cursor: grabbing; }
+
+.term-title { flex: 1 1 auto; font-size: 0.8rem; }
+
+.term-btn {
+    min-width: 0;
+    padding: 0 0.4rem;
+    background: none;
+    color: var(--txtclr);
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.term-btn:hover { color: var(--acntclr); font-style: normal; }
+
+/*--- ausgabe ---*/
+.term-body {
+    padding: 0.5rem;
+    height: 17rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.term-body:focus-visible { outline: none; }
+
+.term-out { white-space: pre-wrap; word-break: break-word; }
+
+.term-echo { color: var(--titleclr); }
+
+.term-out.dim, .term-body .dim { opacity: 0.5; }
+
+/* schluesselspalte der fastfetch-ausgabe */
+.term-key {
+    display: inline-block;
+    min-width: 5.5rem;
+    color: var(--titleclr);
+}
+
+.term-fetch { display: flex; gap: 0.8rem; align-items: flex-start; }
+
+.term-logo {
+    margin: 0;
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    color: var(--acntclr);
+    opacity: 0.8;
+    flex: 0 0 auto;
+}
+
+.term-info { min-width: 0; }
+
+.term-user { color: var(--acntclr); }
+
+.term-colors { display: flex; gap: 2px; margin-top: 0.3rem; }
+
+.term-swatch {
+    width: 1.1rem;
+    height: 0.7rem;
+    display: inline-block;
+    /* die dunkelste farbe braucht eine kante, sonst sieht man sie nicht */
+    outline: 1px solid var(--altbgclr);
+}
+
+/*--- eingabezeile ---*/
+.term-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    border-top: 1.5px solid var(--altbgclr);
+}
+
+.term-prompt { color: var(--acntclr); }
+
+.term-line input {
+    flex: 1 1 auto;
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 0.8rem;
+    color: var(--txtclr);
+}
+
+.term-line input:focus { border: none; outline: none; }
+
+/* auf schmalen schirmen bleibt das fenster unten und nutzt die volle breite */
+@media (max-width: 520px) {
+    .term { left: 0.4rem; right: 0.4rem; width: auto; }
+    .term-body { height: 11rem; }
+    .term-fetch { flex-direction: column; gap: 0.2rem; }
+}

@@ -9,10 +9,14 @@ import path from 'node:path';
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 
 import { config } from './config.js';
 import { api } from './routes/api.js';
+import { auth } from './routes/auth.js';
+import { admin } from './routes/admin.js';
+import { withSession, requireAuth, requireCsrf } from './auth.js';
 
 const app = express();
 
@@ -32,9 +36,12 @@ app.use(
         'script-src': ["'self'", 'https://cdnjs.cloudflare.com'],
         'style-src': ["'self'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com'],
-        'img-src': ["'self'", 'data:', 'blob:'],
+        // i.ytimg.com liefert die vorschaubilder der youtube-facade,
+        // youtube-nocookie.com den player, der erst nach einem klick laedt
+        'img-src': ["'self'", 'data:', 'blob:', 'https://i.ytimg.com'],
         'media-src': ["'self'", 'blob:'],
         'connect-src': ["'self'"],
+        'frame-src': ['https://www.youtube-nocookie.com'],
         'frame-ancestors': ["'none'"],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
@@ -51,6 +58,13 @@ app.use(
 );
 
 app.use(compression());
+app.use(cookieParser());
+
+// json-koerper nur fuer die api; upload-routen brauchen ihn nicht
+app.use('/api', express.json({ limit: '256kb' }));
+
+// haengt req.session an, wenn ein gueltiges cookie mitkommt
+app.use(withSession);
 
 // ---- rate limiting --------------------------------------------------------
 // grosszuegig fuer normale besucher, bremst aber scraper und brute-force.
@@ -64,6 +78,13 @@ app.use(
     message: { error: 'zu viele anfragen' },
   })
 );
+
+// ---- riegel vor dem statischen ausliefern ---------------------------------
+// die editor-oberflaeche liegt unter public/admin/, also im ordner, den
+// express.static bedient. der schutz muss deshalb VOR dem statischen handler
+// stehen — sonst wuerde der die dateien vorher ungeschuetzt herausgeben.
+// gilt fuer /admin, /admin/ und alles darunter.
+app.use('/admin', requireAuth);
 
 // ---- statische dateien ----------------------------------------------------
 // hochgeladene medien: lang cachen, aber niemals als html/script ausliefern.
@@ -89,14 +110,16 @@ app.use(
   })
 );
 
-// ---- api ------------------------------------------------------------------
-app.use('/api', api);
+// ---- anmeldung ------------------------------------------------------------
+app.use('/api/auth', auth);
 
-// ---- ADMIN ----------------------------------------------------------------
-// hier wird spaeter eingehaengt:
-//   app.use('/admin',     adminPages);   // login-formular + editor-oberflaeche
-//   app.use('/api/admin', adminApi);     // geschuetzte schreib-endpunkte
-// siehe SETUP.md, abschnitt "was noch fehlt".
+// ---- geschuetzte schreib-api ----------------------------------------------
+// reihenfolge ist hier die halbe sicherheit: erst pruefen, ob ueberhaupt
+// jemand angemeldet ist, dann das csrf-token, erst danach die routen.
+app.use('/api/admin', requireAuth, requireCsrf, admin);
+
+// ---- oeffentliche api -----------------------------------------------------
+app.use('/api', api);
 
 // ---- seiten-routen --------------------------------------------------------
 // detailseite eines posts: /portfolio/<slug>/ liefert dieselbe html-huelle,
@@ -118,10 +141,19 @@ app.use((req, res) => {
 
 // ---- fehlerbehandlung -----------------------------------------------------
 app.use((err, req, res, _next) => {
+  // kaputtes json ist ein bedienfehler, kein serverfehler — und nichts,
+  // was im log auftauchen muss
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'ungültiges json' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'anfrage zu groß' });
+  }
+
   console.error(err);
   res.status(err.status || 500);
   // keine stacktraces nach draussen
-  if (req.path.startsWith('/api')) return res.json({ error: 'interner fehler' });
+  if (req.originalUrl.startsWith('/api/')) return res.json({ error: 'interner fehler' });
   res.type('txt').send('interner fehler');
 });
 

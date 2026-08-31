@@ -9,7 +9,9 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
 
 ## Was drin ist
 
-- **Homepage** — ein Viewport, zentriert, generativer p5-Hintergrund.
+- **Homepage** — ein Viewport, zentriert, generativer p5-Hintergrund. Unter dem
+  Titel steht ein zufälliger **Splash-Text**; ein Klick würfelt einen neuen.
+  Unten links sitzt ein **Terminal** (siehe unten).
 - **`/portfolio/`** — Grid aus Posts in fünf wählbaren Kachelgrößen,
   filterbar nach frei anlegbaren Kategorien, sortierbar nach neuste/älteste/a–z.
   Filter und Sortierung stehen in der URL und sind damit teilbar.
@@ -20,11 +22,24 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
   friert die Höhe auf den höchsten ein, damit beim Umschalten nichts springt.
 - **JSON-API** unter `/api` — liefert nur veröffentlichte Inhalte, nur lesend.
 
-## Was noch fehlt
+- **`/login/` und `/admin/`** — Anmeldung und Editor. Beide sind nirgends
+  verlinkt; `/admin/` ist auch für Suchmaschinen gesperrt.
 
-- **Admin-Login und Post-Editor.** Datenbank und Server sind darauf vorbereitet
-  (Tabelle `users`, Einhängepunkte in `server/index.js`), gebaut ist es noch nicht.
-  Details in [`SETUP.md`](SETUP.md#was-noch-fehlt).
+## Das Terminal
+
+Nur auf der Startseite. Eingeklappt ist es genau die Zeile `© made by lumi 2026`
+unten links — ein Klick öffnet ein Fenster, das sich an der Titelleiste
+verschieben lässt (Position bleibt im `localStorage`). `—` oder `Esc` klappt es
+wieder ein.
+
+Befehle: `help`, `work`, `about`, `splash`, `fetch`, `clear`, `exit`.
+Dazu ein paar, die `help` **nicht** nennt: `login`, `portfolio`, `whoami`,
+`home`, `ls`, `sudo`. Pfeiltasten blättern durch die Eingaben.
+
+`fetch` zeigt eine fastfetch-Parodie. Die Angaben zu Betriebssystem und Browser
+werden clientseitig aus dem User-Agent geraten und **nirgendwohin geschickt**.
+
+## Was noch fehlt
 - **Die Kontaktlinks.** Der Reiter zeigt „coming soon …", solange keine Links
   in der Tabelle `links` stehen. Format steht als Kommentar in `scripts/seed.js`.
 - **Die Demo-Posts** im Portfolio sind Platzhalter und wollen ersetzt werden.
@@ -55,9 +70,15 @@ server/
   config.js       Konfiguration aus .env, Marke (Name, Jahr) an einer Stelle
   db.js           SQLite-Verbindung (better-sqlite3, WAL)
   schema.sql      Datenbankschema, idempotent
+  auth.js         Passwort-Hashing (scrypt), Sessions, Middleware
   routes/api.js   öffentliche, lesende API
+  routes/auth.js  Anmelden, Abmelden, Passwort ändern
+  routes/admin.js geschützte Schreib-API inkl. Upload
   lib/posts.js    Datenzugriff auf Posts, Medien, Kategorien
   lib/pages.js    Datenzugriff auf Freitextseiten und Links
+  lib/splashes.js Splash-Texte
+  lib/write.js    alle schreibenden Zugriffe
+  lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
 
 public/
@@ -72,10 +93,16 @@ public/
   js/wheat.js         generativer Hintergrund — der aktive
   js/portfolio.js     Grid, Filter, Sortierung
   js/about.js         Reiter der About-Seite
+  js/splash.js        Splash-Text würfeln
+  js/terminal.js      das Terminal auf der Startseite
+  js/login.js         Anmeldeformular
+  login/index.html    Anmeldeseite
+  admin/              Editor — liegt hinter dem Login-Riegel
   js/post.js          Detailseite inkl. eigenem Audio-Player
   uploads/            hochgeladene Medien (nicht im Repo)
 
 scripts/
+  admin.js        Admin-Konto anlegen / Passwort ändern
   migrate.js      Schema anlegen
   seed.js         Demo-Inhalte
   placeholders.js erzeugt die Platzhalter-Medien (SVG generativ, AV per ffmpeg)
@@ -95,7 +122,9 @@ data/             SQLite-Datei (nicht im Repo)
 | `post_categories` | n:m-Verknüpfung |
 | `pages` | Freitextseiten. Gleiche `tab_group` = Reiter derselben Seite, `position` bestimmt die Reihenfolge, `layout` die Darstellung |
 | `links` | Kontakt-/Social-Einträge einer Seite (Label + URL) |
-| `users` | Admin-Zugang (noch ungenutzt, nur Passwort-**Hash**) |
+| `splashes` | die Zeilen unter dem Titel auf der Startseite |
+| `users` | Admin-Zugang, nur Passwort-**Hash** |
+| `sessions` | offene Anmeldungen, nur der **Hash** des Session-Tokens |
 
 ### Seiten-Layouts
 
@@ -113,6 +142,41 @@ tippen lassen:
 | `audio:` | Überschrift, eröffnet eine Gruppe |
 | `mixing: hd 560s` | beschriftete Zeile in der laufenden Gruppe |
 | alles andere | schlichter Eintrag |
+
+### Anmeldung
+
+- Passwörter werden mit **scrypt** aus dem Node-Standard gehasht (N=2¹⁵, r=8,
+  32 Byte Salt). Bewusst ohne zusätzliche Abhängigkeit: kein natives Modul,
+  das beim Aufsetzen wieder gebaut werden müsste.
+- Die Session ist ein Zufallstoken im Cookie; in der Datenbank liegt nur dessen
+  SHA-256-Hash. Ein Datenbank-Leck ergibt also keine gültige Session.
+- Cookie: `httpOnly`, `sameSite=lax`, `secure` in Produktion.
+- Jede schreibende Anfrage braucht zusätzlich das **CSRF-Token** der Session
+  als `X-CSRF-Token`-Header.
+- Die Login-Route ist auf 10 Versuche pro 15 Minuten und IP begrenzt;
+  erfolgreiche zählen nicht mit. Die Fehlermeldung verrät nicht, ob es den
+  Benutzernamen gibt, und es wird auch ohne Treffer ein Hash geprüft, damit
+  die Antwortzeit nichts preisgibt.
+- `/admin` wird **vor** `express.static` abgeriegelt — sonst würde der
+  statische Handler die Dateien vorher ungeschützt ausliefern.
+
+### Uploads
+
+Mehrere Dateien gleichzeitig, eine Anfrage pro Datei, damit jede ihre eigene
+Fortschrittsanzeige hat (`XMLHttpRequest` — `fetch` kennt keinen
+Upload-Fortschritt). Erlaubt sind Bild-, Video- und Audio-Typen aus einer
+festen Liste; **SVG ausdrücklich nicht**, weil SVG Skripte enthalten kann.
+Der Dateiname wird selbst vergeben, der Originalname geht nie in den Pfad ein.
+
+Die Grenze steht in `MAX_UPLOAD_MB` (Standard 500, `0` schaltet sie ab). Der
+Reverse Proxy hat sein eigenes Limit — siehe `SETUP.md`.
+
+### YouTube
+
+Gespeichert wird nur die Video-ID, egal in welcher Form die Adresse eingefügt
+wurde. Angezeigt wird zuerst nur das Vorschaubild mit einem `play`-Knopf; der
+Player von `youtube-nocookie.com` wird erst nach dem Klick eingehängt. Vorher
+lädt nichts von YouTube außer dem Standbild.
 
 ### Mailadressen
 
@@ -193,7 +257,11 @@ braucht beides. Bewusst abgewichen wird an diesen Stellen:
 13. **Fließtext auf der About-Seite ist linksbündig** in einer zentrierten
     Spalte. Der Guide zentriert alles; ab dem zweiten Absatz ist mittig
     geflatterter Satz aber mühsam zu lesen.
-14. **Nur ein Hintergrund-Sketch.** Der Guide würfelt bei jedem Besuch zwischen
+14. **Die Startseite hat ein Terminal.** Ein verschiebbares Fenster ist im
+    Guide nicht vorgesehen — es hält sich aber an dessen Regeln: rechteckig,
+    1,5-px-Linie in `--altbgclr`, kein Schatten, kein Radius, Xanh Mono.
+    Eingeklappt ist es exakt die Footer-Zeile, die vorher dort stand.
+15. **Nur ein Hintergrund-Sketch.** Der Guide würfelt bei jedem Besuch zwischen
     „roots" und „wheat"; „roots" ist vorerst stillgelegt. Die Datei liegt
     weiter unter `public/js/roots.js` — zum Reaktivieren genügt es, sie in
     `site.js` wieder in die Liste `scripts` aufzunehmen.

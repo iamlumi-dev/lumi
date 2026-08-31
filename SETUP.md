@@ -81,6 +81,8 @@ NODE_ENV=production
 DATABASE_PATH=./data/lumiswork.db
 SESSION_SECRET=<hier den erzeugten Zufallswert einsetzen>
 TRUST_PROXY=1          # 1, weil nginx/Caddy davor steht
+SESSION_DAYS=14        # wie lange eine Anmeldung gilt
+MAX_UPLOAD_MB=500      # 0 schaltet die Grenze ab
 ```
 
 Secret erzeugen:
@@ -116,6 +118,25 @@ also nicht ausführen.
 
 Auf einem echten Server will man den Seed meist gar nicht — `db:migrate` genügt,
 dann startet die Seite mit einem leeren Portfolio.
+
+---
+
+## 5b. Admin-Konto anlegen
+
+```bash
+npm run admin:create -- lumi
+```
+
+Das Passwort wird abgefragt und **nicht angezeigt** — es steht damit weder in
+der Befehlszeile noch in der Shell-Historie. Mindestens 12 Zeichen; eine
+Passphrase aus vier Wörtern reicht völlig.
+
+Derselbe Befehl mit einem vorhandenen Benutzernamen **ändert** das Passwort und
+beendet dabei alle offenen Anmeldungen. Das ist auch der Weg zurück, wenn das
+Passwort verloren geht — es gibt bewusst keine Zurücksetzen-per-Mail-Funktion.
+
+Anmelden dann unter `/login/`, der Editor liegt unter `/admin/`. Beide sind
+nirgends auf der Seite verlinkt.
 
 ---
 
@@ -185,7 +206,7 @@ lumi.example.com {
     encode zstd gzip
     reverse_proxy localhost:3000
     request_body {
-        max_size 100MB      # Reserve für spätere Medien-Uploads
+        max_size 600MB      # muss über MAX_UPLOAD_MB liegen
     }
 }
 ```
@@ -200,7 +221,12 @@ server {
     ssl_certificate     /etc/letsencrypt/live/lumi.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/lumi.example.com/privkey.pem;
 
-    client_max_body_size 100M;   # Reserve für spätere Medien-Uploads
+    client_max_body_size 600M;   # muss über MAX_UPLOAD_MB liegen
+
+    # große Uploads brauchen Geduld, sonst bricht der Proxy sie ab
+    proxy_request_buffering off;
+    proxy_read_timeout 600s;
+    proxy_send_timeout 600s;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -223,7 +249,12 @@ Zertifikat mit `certbot --nginx -d lumi.example.com`.
 
 **Wichtig:** Wenn ein Proxy davor steht, muss `TRUST_PROXY=1` in der `.env`
 stehen. Sonst sieht das Rate-Limiting nur die IP des Proxys und zählt alle
-Besucher als einen.
+Besucher als einen — und die Begrenzung der Anmeldeversuche wäre wirkungslos.
+
+**Ebenso wichtig:** Das Limit des Proxys muss **über** `MAX_UPLOAD_MB` liegen,
+sonst bricht er große Uploads ab, bevor die App sie überhaupt sieht. Wer
+`MAX_UPLOAD_MB=0` setzt, muss auch hier abschalten (`client_max_body_size 0;`
+bei nginx).
 
 ---
 
@@ -232,10 +263,12 @@ Besucher als einen.
 Ist bereits in `server/index.js` konfiguriert, muss also nicht nachgerüstet
 werden — aber gut zu wissen:
 
-- **Helmet** mit enger Content-Security-Policy. Erlaubt sind als Fremd-Hosts
-  nur `fonts.googleapis.com`, `fonts.gstatic.com` und `cdnjs.cloudflare.com`
-  (p5.js). Inline-Scripts und Inline-Styles sind **verboten** — deshalb liegt
-  jeder Style im Stylesheet und jedes Script in einer eigenen Datei.
+- **Helmet** mit enger Content-Security-Policy. Erlaubte Fremd-Hosts:
+  `fonts.googleapis.com`, `fonts.gstatic.com`, `cdnjs.cloudflare.com` (p5.js),
+  `i.ytimg.com` (YouTube-Vorschaubilder) und `www.youtube-nocookie.com`
+  (der Player, der erst nach einem Klick lädt). Inline-Scripts und
+  Inline-Styles sind **verboten** — deshalb liegt jeder Style im Stylesheet
+  und jedes Script in einer eigenen Datei.
   Wer eine neue Fremd-Ressource einbindet, muss die CSP dort erweitern,
   sonst blockt der Browser sie stillschweigend.
 - **HSTS**, `frame-ancestors: none`, `nosniff`, `referrer-policy`.
@@ -244,6 +277,14 @@ werden — aber gut zu wissen:
   `Content-Disposition: inline` ausgeliefert und nie als Verzeichnis gelistet.
 - **Keine Stacktraces** nach außen.
 - Alle SQL-Abfragen laufen über **Prepared Statements**.
+- **Passwörter** als scrypt-Hash, **Session-Tokens** nur als SHA-256-Hash.
+- **CSRF-Token** für jede schreibende Anfrage, zusätzlich zu `sameSite=lax`.
+- **10 Anmeldeversuche** pro 15 Minuten und IP.
+- **`/admin` wird vor `express.static` abgeriegelt** — die Reihenfolge in
+  `server/index.js` ist hier sicherheitsrelevant und sollte nicht verschoben
+  werden.
+- **Uploads** nur aus einer festen Typenliste, ohne SVG, mit selbst vergebenem
+  Dateinamen.
 
 ---
 
@@ -303,29 +344,14 @@ sudo systemctl restart lumiswork
 
 ## Was noch fehlt
 
-Der **Admin-Bereich** (Login, Posts anlegen/bearbeiten, Kategorien verwalten,
-Medien hochladen) ist noch nicht gebaut. Vorbereitet ist:
+Nichts Grundsätzliches mehr. Offen sind nur Inhalte:
 
-- Tabelle `users` in `server/schema.sql` — nimmt ausschließlich einen
-  Passwort-**Hash** auf, nie ein Klartextpasswort.
-- `SESSION_SECRET` in der `.env`.
-- Zwei Einhängepunkte in `server/index.js`, im Code mit `ADMIN` markiert:
-  `/admin` für die Oberfläche, `/api/admin` für die schreibenden Endpunkte.
-- `POST_SIZES` und `MEDIA_KINDS` in `server/lib/posts.js` als einzige Quelle
-  der erlaubten Werte — die Auswahlfelder im Editor sollten daraus kommen.
-- `uniqueSlug()` in `server/lib/slug.js` für kollisionsfreie URLs.
+- Die **Kontaktlinks** auf der About-Seite (Reiter zeigt bis dahin
+  „coming soon …").
+- Die **Demo-Posts** im Portfolio wollen durch echte ersetzt werden.
 
-Beim Bau zu beachten:
-
-- Passwörter mit **argon2id** oder bcrypt hashen.
-- Session-Cookies: `httpOnly`, `secure`, `sameSite: 'lax'`.
-- **CSRF-Schutz** für alle schreibenden Routen.
-- Eigenes, striktes Rate-Limit auf die Login-Route (z. B. 10 Versuche
-  pro 15 Minuten und IP).
-- Beim Datei-Upload den Dateityp am **Inhalt** prüfen, nicht an der Endung,
-  und die Datei unter einem selbst erzeugten Namen speichern.
-  **SVG nicht annehmen** — SVG kann Skripte enthalten. (Die Platzhalter-SVGs
-  des Seeds sind selbst erzeugt und deshalb unbedenklich; die CSP verhindert
-  zusätzlich, dass Skripte darin ausgeführt würden.)
-- Die Größe eines Posts nur aus `POST_SIZES` akzeptieren — das Schema
-  erzwingt das per `CHECK`, die API sollte es trotzdem vorher prüfen.
+Wenn später ein weiterer Inhaltstyp dazukommt: Der Editor ist als Registry
+gebaut. Ein neuer Abschnitt braucht einen Eintrag in `SECTIONS` in
+`public/admin/admin.js` und einen Knopf in der Kopfleiste — der Rest ist
+Datenzugriff in `server/lib/write.js` und ein paar Routen in
+`server/routes/admin.js`.

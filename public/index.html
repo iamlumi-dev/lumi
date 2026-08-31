@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>lumi ✧ lumis work</title>
-  <meta name="description" content="lumi macht dinge — generative grafik, ton, bewegtbild und hardware.">
+  <meta name="description" content="lumi makes things — music, visuals, artwork.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Xanh+Mono:ital@0;1&display=swap" rel="stylesheet">
@@ -20,7 +20,12 @@
     </header>
 
     <main id="content">
-      <p class="lead">macht dinge, die meistens grün sind und selten fertig.</p>
+      <!-- eine zufaellige zeile aus der tabelle splashes. ein klick wuerfelt neu. -->
+      <p class="lead">
+        <button type="button" id="splash" class="splash" title="another one">
+          makes things that are mostly green and rarely finished.
+        </button>
+      </p>
     </main>
 
     <nav id="selections">
@@ -29,8 +34,30 @@
     </nav>
   </div>
 
-  <footer><p>&copy; made by lumi 2026</p></footer>
+  <!-- =====================================================================
+       das terminal. eingeklappt ist es genau die footer-zeile, die vorher
+       hier stand; ein klick klappt das fenster auf, das sich verschieben
+       laesst. nur auf der startseite.
+       ===================================================================== -->
+  <button type="button" id="termMin" class="term-min-bar">&copy; made by lumi 2026</button>
+
+  <section id="term" class="term" hidden aria-label="terminal">
+    <header class="term-bar" id="termBar">
+      <span class="term-title">lumi@lumiswork:~</span>
+      <button type="button" class="term-btn" id="termClose" aria-label="minimise">—</button>
+    </header>
+
+    <div class="term-body" id="termBody" tabindex="0"></div>
+
+    <form class="term-line" id="termForm">
+      <label class="term-prompt" for="termInput">$</label>
+      <input type="text" id="termInput" autocomplete="off" autocapitalize="none"
+             spellcheck="false" aria-label="command">
+    </form>
+  </section>
 
   <script src="/js/site.js" defer></script>
+  <script src="/js/splash.js" defer></script>
+  <script src="/js/terminal.js" defer></script>
 </body>
 </html>

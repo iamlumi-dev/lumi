@@ -13,7 +13,7 @@ if (existing > 0 && !reset) {
 }
 
 if (reset) {
-  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages;');
+  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages; DELETE FROM splashes;');
   console.log('… alte inhalte gelöscht');
 }
 
@@ -180,6 +180,27 @@ const PAGES = [
 ];
 
 
+// splash-texte fuer die startseite. bei jedem aufruf wird eine gezogen.
+const SPLASHES = [
+  'makes things that are mostly green and rarely finished.',
+  'still unreleased!',
+  'ninety percent done since february',
+  'the third take is always the right one',
+  'not for the fame',
+  'the nonsense has improved',
+  'mixed at 2am, mastered never',
+  'one more plugin and it is done',
+  'rendering …',
+  'ask about the modular',
+  'green on green on green',
+  'the fridge hums in c',
+  'cachyos btw',
+  'also does covers',
+  'no bpm, no plan',
+  'this line is picked at random',
+  'try typing help down there',
+];
+
 // ---- schreiben ------------------------------------------------------------
 const insertCategory = db.prepare(
   'INSERT INTO categories (slug, name, description, position) VALUES (?, ?, ?, ?)'
@@ -195,6 +216,7 @@ const insertMedia = db.prepare(`
 const linkCategory = db.prepare(
   'INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)'
 );
+const insertSplash = db.prepare('INSERT INTO splashes (text) VALUES (?)');
 const insertPage = db.prepare(`
   INSERT INTO pages (slug, title, body, layout, tab_group, position)
   VALUES (@slug, @title, @body, @layout, @tab_group, @position)
@@ -238,6 +260,8 @@ db.transaction(() => {
     p.categories.forEach((slug) => linkCategory.run(postId, catId.get(slug)));
   });
 
+  SPLASHES.forEach((text) => insertSplash.run(text));
+
   PAGES.forEach((pg) => {
     insertPage.run({
       slug: pg.slug, title: pg.title, body: pg.body,
@@ -248,4 +272,4 @@ db.transaction(() => {
 })();
 
 const linkCount = PAGES.reduce((n, p) => n + (p.links || []).length, 0);
-console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seiten, ${linkCount} links angelegt`);
+console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seiten, ${linkCount} links, ${SPLASHES.length} splashes angelegt`);

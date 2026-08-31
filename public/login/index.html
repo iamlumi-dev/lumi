@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>login ✧ lumis work</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Xanh+Mono:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="p5-bg-container"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
+  <div id="middleSection">
+    <header><div id="title"><h1>login</h1></div></header>
+
+    <main id="content">
+      <form id="loginForm" class="form" autocomplete="on">
+        <label class="field">
+          <span>user</span>
+          <input type="text" name="username" autocomplete="username" required autofocus
+                 spellcheck="false" autocapitalize="none">
+        </label>
+        <label class="field">
+          <span>password</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <div class="form-row">
+          <button type="submit" id="submit">enter</button>
+          <span id="msg" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </main>
+
+    <nav id="selections">
+      <a href="/"><button type="button">back</button></a>
+    </nav>
+  </div>
+
+  <script src="/js/site.js" defer></script>
+  <script src="/js/login.js" defer></script>
+</body>
+</html>

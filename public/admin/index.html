@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>editor ✧ lumis work</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Xanh+Mono:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- liegt hinter dem login-riegel, wird also nur angemeldet ausgeliefert -->
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body class="admin">
+  <header class="admin-bar">
+    <h1>editor</h1>
+
+    <nav class="admin-nav" id="sections" role="tablist">
+      <button class="chip" data-section="posts" role="tab">posts</button>
+      <button class="chip" data-section="categories" role="tab">categories</button>
+      <button class="chip" data-section="pages" role="tab">about</button>
+      <button class="chip" data-section="splashes" role="tab">splashes</button>
+      <button class="chip" data-section="account" role="tab">account</button>
+    </nav>
+
+    <div class="admin-user">
+      <span id="who"></span>
+      <a href="/" target="_blank" rel="noopener"><button type="button">site</button></a>
+      <button type="button" id="logout">log out</button>
+    </div>
+  </header>
+
+  <main id="panel" class="admin-panel">
+    <p class="dim">loading …</p>
+  </main>
+
+  <!-- kurze rueckmeldungen nach dem speichern -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/admin/admin.js" defer></script>
+</body>
+</html>

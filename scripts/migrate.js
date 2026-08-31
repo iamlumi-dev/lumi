@@ -35,4 +35,38 @@ for (const [table, column, definition] of ADDED_COLUMNS) {
 const sql = fs.readFileSync(path.join(ROOT, 'server', 'schema.sql'), 'utf8');
 db.exec(sql);
 
+// --- 3. geaenderte CHECK-bedingungen ----------------------------------------
+// sqlite kann eine CHECK-bedingung nicht per ALTER aendern. der offizielle weg
+// ist: neue tabelle anlegen, daten kopieren, alte loeschen, umbenennen.
+// laeuft nur, wenn die bedingung 'youtube' noch nicht kennt.
+const mediaSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='media'").get();
+if (mediaSql && !mediaSql.sql.includes("'youtube'")) {
+  db.pragma('foreign_keys = OFF');
+  db.transaction(() => {
+    db.exec(`
+      CREATE TABLE media__new (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id  INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        kind     TEXT    NOT NULL CHECK (kind IN ('image','video','audio','youtube')),
+        src      TEXT    NOT NULL,
+        poster   TEXT,
+        alt      TEXT    NOT NULL DEFAULT '',
+        caption  TEXT    NOT NULL DEFAULT '',
+        is_cover INTEGER NOT NULL DEFAULT 0 CHECK (is_cover IN (0,1)),
+        position INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO media__new (id, post_id, kind, src, poster, alt, caption, is_cover, position)
+        SELECT id, post_id, kind, src, poster, alt, caption, is_cover, position FROM media;
+      DROP TABLE media;
+      ALTER TABLE media__new RENAME TO media;
+      CREATE INDEX IF NOT EXISTS idx_media_post ON media (post_id, position);
+    `);
+  })();
+  db.pragma('foreign_keys = ON');
+  // nach so einem umbau lohnt der integritaetscheck
+  const bad = db.pragma('foreign_key_check');
+  if (bad.length) throw new Error('fremdschluessel nach dem umbau kaputt: ' + JSON.stringify(bad));
+  console.log('  ~ tabelle media neu gebaut (kind kennt jetzt youtube)');
+}
+
 console.log(`✓ schema aktuell in ${config.databasePath}${added ? ` (${added} spalte(n) ergänzt)` : ''}`);

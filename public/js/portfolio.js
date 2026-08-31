@@ -109,7 +109,16 @@
     const box = document.createElement('div');
     box.className = 'tile-media';
 
-    if (cover.kind === 'video') {
+    if (cover.kind === 'youtube') {
+      // im raster nur das vorschaubild — der player laedt erst auf der
+      // detailseite, und auch dort erst nach einem klick
+      const img = document.createElement('img');
+      img.src = `https://i.ytimg.com/vi/${cover.src}/hqdefault.jpg`;
+      img.alt = cover.alt || '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      box.appendChild(img);
+    } else if (cover.kind === 'video') {
       const v = document.createElement('video');
       v.src = cover.src;
       if (cover.poster) v.poster = cover.poster;

@@ -77,6 +77,36 @@
     return box;
   }
 
+  /* youtube: erst ein vorschaubild, der player kommt nach dem klick.
+     bis dahin laedt nichts von youtube ausser dem standbild — das haelt
+     die uebersicht ruhig und setzt keine fremden cookies ungefragt. */
+  function youtubeEmbed(m) {
+    const box = el('div', 'yt');
+
+    const thumb = el('img', 'yt-thumb');
+    thumb.src = `https://i.ytimg.com/vi/${m.src}/hqdefault.jpg`;
+    thumb.alt = m.alt || '';
+    thumb.loading = 'lazy';
+
+    const play = el('button', 'yt-play', 'play');
+    play.type = 'button';
+    play.setAttribute('aria-label', `play ${m.alt || 'video'} on youtube`);
+
+    const load = () => {
+      const frame = el('iframe', 'yt-frame');
+      frame.src = `https://www.youtube-nocookie.com/embed/${m.src}?autoplay=1&rel=0`;
+      frame.title = m.alt || 'youtube video';
+      frame.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
+      frame.allowFullscreen = true;
+      frame.referrerPolicy = 'strict-origin-when-cross-origin';
+      box.replaceChildren(frame);
+    };
+
+    play.addEventListener('click', load);
+    box.append(thumb, play);
+    return box;
+  }
+
   function mediaFigure(m) {
     const fig = el('figure');
 
@@ -96,6 +126,8 @@
       fig.appendChild(v);
     } else if (m.kind === 'audio') {
       fig.appendChild(audioPlayer(m.src));
+    } else if (m.kind === 'youtube') {
+      fig.appendChild(youtubeEmbed(m));
     }
 
     const caption = m.caption || m.alt;

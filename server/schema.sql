@@ -43,8 +43,9 @@ CREATE INDEX IF NOT EXISTS idx_posts_published ON posts (published, published_at
 CREATE TABLE IF NOT EXISTS media (
   id       INTEGER PRIMARY KEY AUTOINCREMENT,
   post_id  INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  kind     TEXT    NOT NULL CHECK (kind IN ('image','video','audio')),
-  src      TEXT    NOT NULL,                     -- pfad unter /uploads/ oder externe url
+  kind     TEXT    NOT NULL CHECK (kind IN ('image','video','audio','youtube')),
+  src      TEXT    NOT NULL,                     -- pfad unter /uploads/, externe url,
+                                                 -- oder bei youtube die video-id
   poster   TEXT,                                 -- standbild fuer video (optional)
   alt      TEXT    NOT NULL DEFAULT '',          -- barrierefreiheit / bildunterschrift
   caption  TEXT    NOT NULL DEFAULT '',
@@ -73,6 +74,32 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   last_login_at TEXT
 );
+
+-- ---- sessions -------------------------------------------------------------
+-- serverseitige sessions: im cookie steht nur ein zufallstoken, in der
+-- datenbank dessen sha-256-hash. wer die datenbank liest, kann daraus keine
+-- gueltige session bauen. abgelaufene zeilen raeumt der server selbst weg.
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT    PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  csrf       TEXT    NOT NULL,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions (expires_at);
+
+-- ---- splash-texte ----------------------------------------------------------
+-- die zeile unter dem titel auf der startseite. bei jedem aufruf wird eine
+-- zufaellige gezogen, wie die splashes in minecraft.
+CREATE TABLE IF NOT EXISTS splashes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  text       TEXT    NOT NULL,
+  active     INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_splashes_active ON splashes (active);
 
 -- ---- freitext-inhalte (about me etc.) -------------------------------------
 -- damit lumi spaeter auch die "ueber mich"-seite im admin bearbeiten kann,

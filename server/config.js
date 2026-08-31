@@ -21,6 +21,18 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET || '',
   trustProxy: bool(process.env.TRUST_PROXY, false),
 
+  // wie lange eine admin-session gilt
+  sessionDays: Number(process.env.SESSION_DAYS) || 14,
+
+  // obergrenze pro hochgeladener datei in megabyte. 0 = kein limit.
+  // achtung: der reverse proxy hat sein eigenes limit, siehe SETUP.md.
+  maxUploadMb: (() => {
+    const raw = process.env.MAX_UPLOAD_MB;
+    if (raw === undefined || raw === '') return 500;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 500;
+  })(),
+
   // marke — an genau einer stelle aenderbar
   site: {
     name: 'lumi',

@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { listPosts, getPost, listCategories, neighbours, POST_SIZES } from '../lib/posts.js';
 import { getPage, getPageGroup } from '../lib/pages.js';
+import { activeSplashes } from '../lib/splashes.js';
 
 export const api = Router();
 
@@ -33,6 +34,13 @@ api.get('/posts/:slug', cache(30), (req, res) => {
   const post = getPost(req.params.slug);
   if (!post) return res.status(404).json({ error: 'not found' });
   res.json({ post, ...neighbours(post.slug) });
+});
+
+// --- splash-texte -----------------------------------------------------------
+// alle aktiven auf einmal. die startseite zieht daraus selbst eine zufaellige
+// und kann bei jedem klick nachwuerfeln, ohne nochmal zu laden.
+api.get('/splashes', cache(60), (req, res) => {
+  res.json({ splashes: activeSplashes().map((s) => s.text) });
 });
 
 // --- freitext-seiten --------------------------------------------------------
