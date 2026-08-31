@@ -333,12 +333,32 @@ Datei nach `data/lumiswork.db` zurückkopieren, Uploads entpacken, Dienst starte
 ```bash
 sudo -u lumiswork -H bash
 cd /srv/lumiswork
+npm run db:backup         # zuerst. immer.
 git pull
 npm ci --omit=dev
 npm run db:migrate        # neue Tabellen/Spalten, wenn welche dazugekommen sind
 exit
 sudo systemctl restart lumiswork
 ```
+
+### Warum das die Inhalte nicht anfassen kann
+
+Der entscheidende Punkt: **Code und Inhalte sind getrennt.**
+
+| liegt in Git | liegt nur auf dem Server |
+|---|---|
+| `server/`, `public/`, `scripts/`, Dokumentation | `data/lumiswork.db` — alle Posts, Splashes, Shoutouts, Texte, Konten |
+| | `public/uploads/` — alle hochgeladenen Dateien |
+| | `.env` |
+
+`git pull` kann die Datenbank also gar nicht überschreiben — sie steht in
+`.gitignore` und war nie im Repo. `db:migrate` legt nur fehlende Tabellen,
+Spalten und Indizes an; es löscht nichts und ändert keine Zeile. Der einzige
+Befehl im Projekt, der Inhalte wegwerfen kann, ist
+`db:seed -- --reset --force` — und der ist **auf dem Server nie nötig**.
+
+Der Seed ist ausschließlich dafür da, eine leere Datenbank mit Demo-Inhalten
+zu füllen, damit man beim Entwickeln etwas zu sehen hat.
 
 ---
 
