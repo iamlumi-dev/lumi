@@ -20,6 +20,10 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
   findet. Liste statt Raster, filterbar nach Art (song / album / artist /
   video / other). Nur der Name ist Pflicht — Link, Titel, Notiz und Titelbild
   sind alle optional. Ein YouTube-Link bringt sein Vorschaubild selbst mit.
+- **`/friends/`** — Links zu den Seiten anderer Leute. Inhalt aus der
+  Datenbank, im Editor pflegbar (Name, Adresse, optional eine Zeile dazu).
+- **`/colophon/`** — wie die Seite gebaut ist: Farben, Schriften, der
+  generative Hintergrund, die Quiet-UI. Text ebenfalls aus der Datenbank.
 - **`/about/`** — drei Reiter (whoami / contact / setup), die den Mittelteil
   austauschen statt zu scrollen. Inhalt kommt aus der Datenbank, Reiter sind
   per `#hash` verlinkbar. `about.js` misst beim Laden alle Reiter durch und
@@ -36,12 +40,34 @@ unten links — ein Klick öffnet ein Fenster, das sich an der Titelleiste
 verschieben lässt (Position bleibt im `localStorage`). `—` oder `Esc` klappt es
 wieder ein.
 
-Befehle: `help`, `work`, `about`, `shoutouts`, `splash`, `fetch`, `clear`,
-`exit`. Dazu ein paar, die `help` **nicht** nennt: `login`, `portfolio`,
-`whoami`, `home`, `recs`, `ls`, `sudo`. Pfeiltasten blättern durch die Eingaben.
+**Navigation:** `work`, `about`, `shoutouts`, `friends`, `colophon`
+**Spielereien:** `theme` (Hintergrund umschalten — wheat, roots, off),
+`matrix`, `plant`, `glitch`, `cowsay <text>`
+**Nützlich:** `search <wort>`, `random`, `splash`, `fetch`, `clear`, `exit`, `help`
+**Nicht in `help`:** `login`, `grep` (dasselbe wie `search`), `portfolio`,
+`whoami`, `home`, `recs`, `ls`, `sudo`
+
+Die Spielereien liegen in `public/js/term-toys.js` und werden von `terminal.js`
+dazugemischt — ein neuer Befehl ist ein Eintrag in dem Objekt, sonst nichts.
+Sie bekommen beim Aufruf einen Kontext mit den Ausgabefunktionen des Terminals
+und greifen nie selbst ans DOM. `matrix`, `plant` und `glitch` halten sich an
+`prefers-reduced-motion`. Pfeiltasten blättern durch die Eingaben.
 
 `fetch` zeigt eine fastfetch-Parodie. Die Angaben zu Betriebssystem und Browser
 werden clientseitig aus dem User-Agent geraten und **nirgendwohin geschickt**.
+
+## Eine neue Textseite anlegen
+
+Braucht kein neues Script:
+
+1. Zeile in `REQUIRED_PAGES` in `scripts/migrate.js` — **nicht** in den Seed.
+   Der Seed läuft auf einem laufenden Server nie; `migrate.js` legt die Zeile
+   mit `INSERT OR IGNORE` an und lässt vorhandene unangetastet.
+2. Hülle nach `public/<slug>/index.html` kopieren, `data-page="<slug>"` am
+   `<body>` setzen.
+3. Optional: Eintrag in den Navigationsleisten und ein Befehl in `terminal.js`.
+
+Der Rest — Laden, Layout, Fehlerbehandlung — kommt aus `public/js/page.js`.
 
 ## Was noch fehlt
 - **Die Kontaktlinks.** Der Reiter zeigt „coming soon …", solange keine Links
@@ -92,6 +118,8 @@ public/
   index.html          Homepage
   about/index.html    Über mich, mit Reitern
   shoutouts/index.html Empfehlungen
+  friends/index.html  Hülle — Inhalt kommt aus pages
+  colophon/index.html Hülle — Inhalt kommt aus pages
   portfolio/index.html   Grid
   portfolio/post.html    Hülle der Detailseite
   404.html
@@ -102,6 +130,8 @@ public/
   js/portfolio.js     Grid, Filter, Sortierung
   js/about.js         Reiter der About-Seite
   js/shoutouts.js     Empfehlungsliste
+  js/page.js          generische Textseite (friends, colophon, …)
+  js/term-toys.js     die Spielereien des Terminals
   js/splash.js        Splash-Text würfeln
   js/terminal.js      das Terminal auf der Startseite
   js/login.js         Anmeldeformular
@@ -132,7 +162,7 @@ data/             SQLite-Datei (nicht im Repo)
 | `categories` | frei anlegbare Kategorien |
 | `post_categories` | n:m-Verknüpfung |
 | `pages` | Freitextseiten. Gleiche `tab_group` = Reiter derselben Seite, `position` bestimmt die Reihenfolge, `layout` die Darstellung |
-| `links` | Kontakt-/Social-Einträge einer Seite (Label + URL) |
+| `links` | Einträge einer Seite: Label, URL, optional eine Zeile dazu. Trägt sowohl die Kontaktlinks als auch die Friends-Liste |
 | `shoutouts` | Empfehlungen. Bewusst eine eigene Tabelle und nicht `posts` — ein Shoutout ist keine eigene Arbeit und soll im Portfolio nicht mitgezählt werden |
 | `splashes` | die Zeilen unter dem Titel auf der Startseite. Kein Längenlimit, kein Umbruch außer an gesetzten Zeilenumbrüchen |
 | `users` | Admin-Zugang, nur Passwort-**Hash** |
@@ -142,7 +172,7 @@ data/             SQLite-Datei (nicht im Repo)
 
 | `layout` | rendert |
 |---|---|
-| `prose` | Leerzeilen trennen Absätze |
+| `prose` | Leerzeilen trennen Absätze, eine Zeile `## text` wird eine Zwischenüberschrift |
 | `list` | jede Zeile ein Listeneintrag |
 | `links` | `body` als optionaler Einleitungstext, Einträge aus `links`. Ohne Einträge: „coming soon …" |
 

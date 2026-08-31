@@ -293,6 +293,7 @@ admin.post('/pages/:slug/links', handle((req, res) => {
   store.createLink(slug, {
     label: str(body.label, 'beschriftung', { min: 1, max: 60 }),
     url: url(body.url, 'adresse'),
+    note: str(body.note, 'notiz', { max: 200 }),
   });
   res.status(201).json({ links: store.listLinks(slug) });
 }));
@@ -302,6 +303,7 @@ admin.patch('/links/:id', handle((req, res) => {
   const ok = store.updateLink(int(req.params.id, 'id'), {
     label: str(body.label, 'beschriftung', { min: 1, max: 60 }),
     url: url(body.url, 'adresse'),
+    note: str(body.note, 'notiz', { max: 200 }),
   });
   if (!ok) return res.status(404).json({ error: 'nicht gefunden' });
   res.json({ ok: true });

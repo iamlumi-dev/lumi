@@ -710,7 +710,7 @@
         form.appendChild(field('tab label', input('title', page.title, { required: true, maxlength: 80 })));
         form.appendChild(field('position', input('position', page.position, { type: 'number', min: 0, max: 999 })));
         form.appendChild(field('layout', select('layout', [
-          { value: 'prose', label: 'prose — blank line = new paragraph' },
+          { value: 'prose', label: 'prose — blank line = new paragraph, "## text" = subheading' },
           { value: 'list', label: 'list — "group:" opens a group, "key: value" a labelled row' },
           { value: 'links', label: 'links — text plus the link list below' },
         ], page.layout), true));
@@ -746,15 +746,15 @@
     links.forEach((link, i) => {
       const label = input('label', link.label, { maxlength: 60 });
       const address = input('url', link.url, { maxlength: 2000 });
+      const note = input('note', link.note, { placeholder: 'one line about it (optional)', maxlength: 200 });
 
       const save = guard(async () => {
         await api(`/admin/links/${link.id}`, {
-          method: 'PATCH', body: { label: label.value, url: address.value },
+          method: 'PATCH', body: { label: label.value, url: address.value, note: note.value },
         });
         toast('link saved');
       });
-      label.addEventListener('change', save);
-      address.addEventListener('change', save);
+      [label, address, note].forEach((f) => f.addEventListener('change', save));
 
       const move = guard(async (delta) => {
         const ids = links.map((l) => l.id);
@@ -766,7 +766,7 @@
       });
 
       rows.appendChild(el('div', { class: 'row' }, [
-        el('div', { class: 'media-fields' }, [label, address]),
+        el('div', { class: 'media-fields' }, [label, address, note]),
         el('div', { class: 'row-actions' }, [
           el('button', { type: 'button', class: 'mini', text: '↑', onclick: () => move(-1) }),
           el('button', { type: 'button', class: 'mini', text: '↓', onclick: () => move(1) }),
@@ -782,16 +782,18 @@
 
     const newLabel = input('newLabel', '', { placeholder: 'label, e.g. bandcamp' });
     const newUrl = input('newUrl', '', { placeholder: 'https://… or mailto:you@example.com' });
+    const newNote = input('newNote', '', { placeholder: 'one line about it (optional)' });
 
     box.appendChild(el('h3', { text: 'links' }));
     box.appendChild(rows);
     box.appendChild(el('div', { class: 'form-row' }, [
-      newLabel, newUrl,
+      newLabel, newUrl, newNote,
       el('button', { type: 'button', class: 'roomy', text: 'add',
         onclick: guard(async () => {
           if (!newLabel.value.trim() || !newUrl.value.trim()) return;
           await api(`/admin/pages/${slug}/links`, {
-            method: 'POST', body: { label: newLabel.value, url: newUrl.value },
+            method: 'POST',
+            body: { label: newLabel.value, url: newUrl.value, note: newNote.value },
           });
           toast('added');
           show('pages');

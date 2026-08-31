@@ -15,7 +15,7 @@ const selectGroup = db.prepare(`
 `);
 
 const selectLinks = db.prepare(`
-  SELECT label, url FROM links WHERE page_slug = ? ORDER BY position ASC, id ASC
+  SELECT label, url, note FROM links WHERE page_slug = ? ORDER BY position ASC, id ASC
 `);
 
 // mailadressen werden zerlegt ausgeliefert: weder im html noch in der
@@ -28,8 +28,8 @@ const selectLinks = db.prepare(`
 // nicht drin.
 function protectMail(link) {
   const m = /^mailto:([^@]+)@(.+)$/i.exec(link.url.trim());
-  if (!m) return { label: link.label, url: link.url };
-  return { label: link.label, mail: { user: m[1], domain: m[2] } };
+  if (!m) return { label: link.label, url: link.url, note: link.note };
+  return { label: link.label, note: link.note, mail: { user: m[1], domain: m[2] } };
 }
 
 function hydrate(row) {

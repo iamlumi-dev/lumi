@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS links (
   page_slug TEXT    NOT NULL REFERENCES pages(slug) ON DELETE CASCADE,
   label     TEXT    NOT NULL,
   url       TEXT    NOT NULL,
+  note      TEXT    NOT NULL DEFAULT '',   -- eine zeile dazu, optional
   position  INTEGER NOT NULL DEFAULT 0
 );
 

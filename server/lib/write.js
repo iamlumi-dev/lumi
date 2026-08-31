@@ -239,20 +239,20 @@ export function deletePage(slug) {
 }
 
 export function listLinks(pageSlug) {
-  return db.prepare('SELECT id, label, url, position FROM links WHERE page_slug = ? ORDER BY position ASC, id ASC')
+  return db.prepare('SELECT id, label, url, note, position FROM links WHERE page_slug = ? ORDER BY position ASC, id ASC')
     .all(pageSlug);
 }
 
 export function createLink(pageSlug, fields) {
   const next = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS n FROM links WHERE page_slug = ?')
     .get(pageSlug).n;
-  return db.prepare('INSERT INTO links (page_slug, label, url, position) VALUES (?, ?, ?, ?)')
-    .run(pageSlug, fields.label, fields.url, next).lastInsertRowid;
+  return db.prepare('INSERT INTO links (page_slug, label, url, note, position) VALUES (?, ?, ?, ?, ?)')
+    .run(pageSlug, fields.label, fields.url, fields.note, next).lastInsertRowid;
 }
 
 export function updateLink(id, fields) {
-  return db.prepare('UPDATE links SET label = ?, url = ? WHERE id = ?')
-    .run(fields.label, fields.url, id).changes > 0;
+  return db.prepare('UPDATE links SET label = ?, url = ?, note = ? WHERE id = ?')
+    .run(fields.label, fields.url, fields.note, id).changes > 0;
 }
 
 export function deleteLink(id) {

@@ -1,5 +1,6 @@
 // sketch 1 — "roots": linienzuege wachsen von zufaelligen bildschirmraendern nach innen.
-new p5((s) => {
+// die instanz wird abgelegt, damit "theme" sie entfernen kann
+window.__bgInstance = new p5((s) => {
   const MAX_ROOTS = 100;
   const SPAWN_EVERY = 90;
   const STEP = 8;              // pixel pro wachstumsschritt

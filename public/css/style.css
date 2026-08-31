@@ -1061,3 +1061,99 @@ a.shout-link:hover { font-style: normal; }
     .shout-cover { width: 56px; height: 56px; }
     .shout-link { gap: 0.7rem; }
 }
+
+/*=== TEXTSEITEN (friends, colophon, …) ===*/
+/* diese seiten sind zum lesen da und duerfen deshalb scrollen — wie die
+   detailseite eines posts, aus demselben grund. */
+body.textpage {
+    display: block;
+    padding: 6vh 4vw 6rem 4vw;
+}
+
+body.textpage #middleSection { margin: 0 auto; align-items: stretch; }
+body.textpage #title { height: auto; margin-bottom: 1.5rem; justify-content: flex-start; }
+body.textpage #title h1 { font-size: 2rem; }
+
+body.textpage footer { position: static; margin-top: 3rem; }
+body.textpage footer p { margin-left: 0; }
+
+body.textpage #selections {
+    margin-top: 2.5rem;
+    justify-content: flex-start;
+    max-width: none;
+}
+
+.page-body {
+    width: 100%;
+    max-width: 62ch;
+    text-align: left;
+    line-height: 1.5;
+}
+
+.page-body p { margin: 0 0 1rem 0; }
+
+/* zwischenueberschrift: mono, gedimmt, mit linie — wie im editor */
+.page-head {
+    font-family: "Xanh Mono", monospace;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--titleclr);
+    margin: 2rem 0 0.6rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 1.5px solid var(--altbgclr);
+}
+
+.page-head:first-child { margin-top: 0; }
+
+/*--- linkliste (friends) ---*/
+.link-list {
+    list-style: none;
+    margin: 1.2rem 0 0 0;
+    padding: 0;
+}
+
+.link-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.9rem;
+    padding: 0.6rem 0;
+    border-bottom: 1.5px solid var(--altbgclr);
+}
+
+.link-label {
+    color: var(--titleclr);
+    flex: 0 0 auto;
+    transition: color 0.3s ease-in-out;
+}
+
+.link-label:hover { color: var(--acntclr); font-style: normal; }
+
+.link-note {
+    font-size: 0.85rem;
+    opacity: 0.6;
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+/*=== TERMINAL — spielereien ===*/
+.term-rain,
+.term-plant {
+    margin: 0.3rem 0;
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    color: var(--acntclr);
+    opacity: 0.85;
+    white-space: pre;
+}
+
+.term-rain { opacity: 0.7; }
+
+/* anklickbarer suchtreffer */
+.term-link {
+    color: var(--txtclr);
+    transition: color 0.3s ease-in-out;
+}
+
+.term-link:hover { color: var(--acntclr); font-style: normal; }

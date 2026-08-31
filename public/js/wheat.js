@@ -1,5 +1,6 @@
 // sketch 2 — "wheat": ein punktraster, das per 3d-noise sehr langsam weht.
-new p5((s) => {
+// die instanz wird abgelegt, damit "theme" sie entfernen kann
+window.__bgInstance = new p5((s) => {
   const GAP = 22;
   let z = 0;
 

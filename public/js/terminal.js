@@ -14,6 +14,8 @@
 
   const POSITION_KEY = 'lw.term.pos';
   const started = Date.now();
+  // die spielereien fragen das ab, bevor sie irgendetwas animieren
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const history = [];
   let historyAt = 0;
 
@@ -35,6 +37,25 @@
     k.className = 'term-key';
     k.textContent = key;
     div.append(k, document.createTextNode(value));
+    body.appendChild(div);
+  }
+
+  // ausgabezeile mit anklickbarem ziel — fuer suchtreffer
+  function linkLine(where, label, href, external = false) {
+    const div = document.createElement('div');
+    div.className = 'term-out';
+
+    const key = document.createElement('span');
+    key.className = 'term-key';
+    key.textContent = where;
+
+    const a = document.createElement('a');
+    a.className = 'term-link';
+    a.href = href;
+    a.textContent = label;
+    if (external) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+
+    div.append(key, a);
     body.appendChild(div);
   }
 
@@ -172,6 +193,8 @@
     work: { describe: 'the portfolio', run: () => go('/portfolio/') },
     about: { describe: 'who lumi is', run: () => go('/about/') },
     shoutouts: { describe: 'things by other people', run: () => go('/shoutouts/') },
+    friends: { describe: 'sites worth your time', run: () => go('/friends/') },
+    colophon: { describe: 'how this site is built', run: () => go('/colophon/') },
     splash: {
       describe: 'roll another splash text',
       run() {
@@ -194,9 +217,16 @@
     ls: { describe: '', hidden: true, run: () => line('work  about  shoutouts  splash') },
     sudo: { describe: '', hidden: true, run: () => line('lumi is not in the sudoers file. this incident will be reported.') },
     help2: { describe: '', hidden: true, run: () => COMMANDS.help.run() },
+
+    // die spielereien liegen in term-toys.js und werden hier dazugemischt.
+    // faellt die datei aus, laeuft der rest unveraendert weiter.
+    ...(window.__termToys || {}),
   };
 
-  function execute(raw) {
+  // das bekommt jede spielerei beim aufruf, damit sie nicht selbst am dom greift
+  const ctx = { line, pair, linkLine, body, go, scrollDown, reduceMotion };
+
+  async function execute(raw) {
     const text = raw.trim();
     line(`$ ${text}`, 'term-echo');
     if (!text) return;
@@ -204,16 +234,28 @@
     history.push(text);
     historyAt = history.length;
 
-    const name = text.split(/\s+/)[0].toLowerCase();
+    const parts = text.split(/\s+/);
+    const name = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
     const cmd = COMMANDS[name];
-    if (cmd) cmd.run();
-    else line(`command not found: ${name} — try help`, 'dim');
+    if (!cmd) return line(`command not found: ${name} — try help`, 'dim');
+
+    try {
+      // manche spielereien holen daten und sind deshalb asynchron
+      await cmd.run(ctx, args);
+    } catch (err) {
+      line(`${name} broke: ${err.message}`, 'dim');
+      console.error(err);
+    }
+    scrollDown();
   }
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    execute(inputEl.value);
+    const raw = inputEl.value;
     inputEl.value = '';
+    execute(raw);
     scrollDown();
   });
 
