@@ -9,6 +9,11 @@
     /* grid-stellschrauben, per media query ueberschrieben */
     --cols: 4;
     --gap: 12px;
+
+    /* ein einziger wert fuer alles, was wie ein button aussieht:
+       nav-buttons, filter-chips, audio-player. */
+    --btn-padding: 0.3rem 0.6rem;
+    --btn-min-width: 70px;
 }
 
 /*=== GENERATIVER HINTERGRUND ===*/
@@ -116,9 +121,10 @@ button {
     background-color: var(--altbgclr);
     color: var(--txtclr);
     border: none;
-    width: 100%;
-    max-width: 70px;
-    padding: 0.15rem 0;
+    /* breite folgt dem label, aber nie schmaler als ein kurzes wort —
+       so bleiben "back" und "whoami" gleich hoch und gleich gepolstert. */
+    min-width: var(--btn-min-width);
+    padding: var(--btn-padding);
     cursor: pointer;
     transition: color 0.8s ease-in-out, background-color 0.3s ease-in-out;
 }
@@ -126,9 +132,6 @@ button {
 button:hover { font-style: italic; }
 
 button[aria-current="page"] { background-color: var(--titleclr); color: var(--bgclr); }
-
-/* breitere buttons, wo ein wort nicht reicht */
-button.roomy { max-width: none; padding: 0.15rem 0.7rem; }
 
 /*=== QUIET UI ===*/
 /* auf geraeten mit echtem zeiger verschwindet die navigation, bis man hinschaut */
@@ -156,9 +159,8 @@ button.roomy { max-width: none; padding: 0.15rem 0.7rem; }
     background-color: var(--altbgclr);
     color: var(--txtclr);
     border: none;
-    padding: 0.3rem 0.6rem;
-    width: auto;
-    max-width: none;
+    padding: var(--btn-padding);
+    min-width: 0;              /* chips folgen ihrem label, ohne mindestbreite */
     cursor: pointer;
     transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
@@ -457,10 +459,7 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
 
 .audio audio { display: none; }
 
-.audio-toggle {
-    max-width: 60px;
-    flex: 0 0 60px;
-}
+.audio-toggle { flex: 0 0 auto; }
 
 .audio-time {
     font-size: 0.85rem;
