@@ -112,9 +112,23 @@ die zu einer schon bestehenden Tabelle dazugekommen sind (`CREATE TABLE IF NOT
 EXISTS` allein würde eine vorhandene Tabelle unverändert lassen). Nach jedem
 `git pull` also mit ausführen — die Liste steht oben in `scripts/migrate.js`.
 
-`npm run db:seed -- --reset` **löscht alle Posts, Kategorien und Seiten** und
-legt die Demo-Inhalte neu an. Auf einem Produktivsystem mit echten Inhalten
-also nicht ausführen.
+`npm run db:seed -- --reset` legt die Demo-Inhalte neu an. Davor passiert
+zweierlei, damit nie etwas verloren geht:
+
+1. Es wird **immer** eine Sicherung nach `data/backups/` geschrieben.
+2. Stehen in der Datenbank Inhalte, die nicht wörtlich aus dem Seed stammen,
+   **bricht der Befehl ab** und nennt sie beim Namen. Erst
+   `--reset --force` verwirft sie wirklich.
+
+```bash
+npm run db:backup                    # Sicherung von Hand
+npm run db:restore                   # vorhandene Sicherungen auflisten
+npm run db:restore -- <datei>        # eine zurückspielen
+```
+
+`db:restore` sichert den aktuellen Stand, bevor es ihn überschreibt — auch ein
+versehentliches Zurückspielen kostet also nichts. Aufgehoben werden die
+letzten 30 Sicherungen; sie liegen neben der Datenbank und **nicht** im Repo.
 
 Auf einem echten Server will man den Seed meist gar nicht — `db:migrate` genügt,
 dann startet die Seite mit einem leeren Portfolio.

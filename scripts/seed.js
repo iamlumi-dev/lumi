@@ -2,8 +2,10 @@
 // zu zeigen hat. aufruf:  npm run db:seed  (bzw. mit --reset zum ueberschreiben)
 import { db } from '../server/db.js';
 import { generatePlaceholders } from './placeholders.js';
+import { backupDatabase } from './backup.js';
 
 const reset = process.argv.includes('--reset');
+const force = process.argv.includes('--force');
 
 const existing = db.prepare('SELECT COUNT(*) AS n FROM posts').get().n;
 if (existing > 0 && !reset) {
@@ -12,11 +14,8 @@ if (existing > 0 && !reset) {
   process.exit(0);
 }
 
-if (reset) {
-  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages; DELETE FROM splashes; DELETE FROM shoutouts;');
-  console.log('… alte inhalte gelöscht');
-}
-
+// die platzhalter-dateien entstehen vor dem loeschen — sie liegen im
+// dateisystem, nicht in der datenbank, und stoeren dort niemanden.
 const { images, av } = generatePlaceholders();
 
 const CATEGORIES = [
@@ -237,6 +236,65 @@ const SPLASHES = [
   'this line is picked at random',
   'try typing help down there',
 ];
+
+if (reset) {
+  // ---------------------------------------------------------------------
+  // ab hier wird geloescht. zwei sicherungen davor:
+  //
+  //   1. eine kopie der datenbank, immer, ohne ausnahme
+  //   2. ein abbruch, wenn inhalte drin stehen, die nicht aus diesem seed
+  //      stammen — die waeren sonst weg, und genau das ist schon passiert
+  // ---------------------------------------------------------------------
+  await backupDatabase('vor-seed-reset');
+
+  const own = findOwnContent();
+  if (own.length && !force) {
+    console.error('\n✗ abgebrochen: in der datenbank stehen eigene inhalte.\n');
+    for (const line of own) console.error(`    ${line}`);
+    console.error('\n  die sicherung von eben liegt unter data/backups/.');
+    console.error('  wirklich alles verwerfen:  npm run db:seed -- --reset --force\n');
+    process.exit(1);
+  }
+  if (own.length) {
+    console.log('! --force: die folgenden eigenen inhalte werden verworfen');
+    for (const line of own) console.log(`    ${line}`);
+  }
+
+  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages; DELETE FROM splashes; DELETE FROM shoutouts;');
+  console.log('… alte inhalte gelöscht');
+}
+
+// zaehlt alles, was nicht wortwoertlich aus den listen unten stammt.
+// benutzer und sessions fasst der seed ohnehin nie an.
+function findOwnContent() {
+  const out = [];
+  const check = (label, rows, known) => {
+    const extra = rows.filter((r) => !known.has(r));
+    if (extra.length) {
+      const shown = extra.slice(0, 4).map((e) => `"${String(e).slice(0, 50)}"`).join(', ');
+      out.push(`${extra.length} ${label}: ${shown}${extra.length > 4 ? ' …' : ''}`);
+    }
+  };
+
+  check('post(s)', db.prepare('SELECT title FROM posts').all().map((r) => r.title),
+    new Set(POSTS.map((p) => p.title)));
+  check('kategorie(n)', db.prepare('SELECT name FROM categories').all().map((r) => r.name),
+    new Set(CATEGORIES.map((c) => c.name)));
+  check('splash(es)', db.prepare('SELECT text FROM splashes').all().map((r) => r.text),
+    new Set(SPLASHES));
+  check('shoutout(s)', db.prepare('SELECT creator FROM shoutouts').all().map((r) => r.creator),
+    new Set(SHOUTOUTS.map((s) => s.creator)));
+  check('kontaktlink(s)', db.prepare('SELECT label FROM links').all().map((r) => r.label),
+    new Set());
+
+  // geaenderte seitentexte zaehlen auch als eigene inhalte
+  const pageBodies = new Set(PAGES.map((p) => p.body));
+  const changed = db.prepare('SELECT slug, body FROM pages').all()
+    .filter((r) => !pageBodies.has(r.body));
+  if (changed.length) out.push(`${changed.length} geänderte seite(n): ${changed.map((c) => c.slug).join(', ')}`);
+
+  return out;
+}
 
 // ---- schreiben ------------------------------------------------------------
 const insertCategory = db.prepare(

@@ -60,7 +60,9 @@ npm run setup                  # Schema anlegen + Demo-Inhalte
 npm run dev                    # http://localhost:3000
 ```
 
-`npm run db:seed -- --reset` überschreibt die Demo-Inhalte, `npm run db:migrate`
+`npm run db:seed -- --reset` überschreibt die Demo-Inhalte — sichert vorher
+und **bricht ab**, wenn eigene Inhalte in der Datenbank stehen (siehe
+[`SETUP.md`](SETUP.md#5-datenbank-anlegen)). `npm run db:migrate`
 legt nur das Schema an (idempotent, gefahrlos wiederholbar) und trägt dabei
 auch Spalten nach, die zu einer schon bestehenden Tabelle dazugekommen sind.
 
@@ -110,6 +112,8 @@ public/
 
 scripts/
   admin.js        Admin-Konto anlegen / Passwort ändern
+  backup.js       Sicherung der Datenbank
+  restore.js      Sicherung zurückspielen
   migrate.js      Schema anlegen
   seed.js         Demo-Inhalte
   placeholders.js erzeugt die Platzhalter-Medien (SVG generativ, AV per ffmpeg)
