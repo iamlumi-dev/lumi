@@ -349,6 +349,8 @@ Nichts Grundsätzliches mehr. Offen sind nur Inhalte:
 - Die **Kontaktlinks** auf der About-Seite (Reiter zeigt bis dahin
   „coming soon …").
 - Die **Demo-Posts** im Portfolio wollen durch echte ersetzt werden.
+- Die **Beispiel-Shoutouts** ebenso — sie sind als Platzhalter erkennbar
+  benannt.
 
 Wenn später ein weiterer Inhaltstyp dazukommt: Der Editor ist als Registry
 gebaut. Ein neuer Abschnitt braucht einen Eintrag in `SECTIONS` in

@@ -171,6 +171,7 @@
     },
     work: { describe: 'the portfolio', run: () => go('/portfolio/') },
     about: { describe: 'who lumi is', run: () => go('/about/') },
+    shoutouts: { describe: 'things by other people', run: () => go('/shoutouts/') },
     splash: {
       describe: 'roll another splash text',
       run() {
@@ -189,7 +190,8 @@
     fastfetch: { describe: '', hidden: true, run: fastfetch },
     neofetch: { describe: '', hidden: true, run: fastfetch },
     login: { describe: '', hidden: true, run: () => go('/login/') },
-    ls: { describe: '', hidden: true, run: () => line('work  about  splash') },
+    recs: { describe: '', hidden: true, run: () => go('/shoutouts/') },
+    ls: { describe: '', hidden: true, run: () => line('work  about  shoutouts  splash') },
     sudo: { describe: '', hidden: true, run: () => line('lumi is not in the sudoers file. this incident will be reported.') },
     help2: { describe: '', hidden: true, run: () => COMMANDS.help.run() },
   };

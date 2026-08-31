@@ -16,6 +16,10 @@ Portfolio-Website von lumi. Dunkles, botanisches Terminal-Design nach
   filterbar nach frei anlegbaren Kategorien, sortierbar nach neuste/älteste/a–z.
   Filter und Sortierung stehen in der URL und sind damit teilbar.
 - **`/portfolio/<slug>`** — Detailseite eines Posts.
+- **`/shoutouts/`** — Empfehlungen: Sachen von anderen Leuten, die lumi gut
+  findet. Liste statt Raster, filterbar nach Art (song / album / artist /
+  video / other). Nur der Name ist Pflicht — Link, Titel, Notiz und Titelbild
+  sind alle optional. Ein YouTube-Link bringt sein Vorschaubild selbst mit.
 - **`/about/`** — drei Reiter (whoami / contact / setup), die den Mittelteil
   austauschen statt zu scrollen. Inhalt kommt aus der Datenbank, Reiter sind
   per `#hash` verlinkbar. `about.js` misst beim Laden alle Reiter durch und
@@ -32,9 +36,9 @@ unten links — ein Klick öffnet ein Fenster, das sich an der Titelleiste
 verschieben lässt (Position bleibt im `localStorage`). `—` oder `Esc` klappt es
 wieder ein.
 
-Befehle: `help`, `work`, `about`, `splash`, `fetch`, `clear`, `exit`.
-Dazu ein paar, die `help` **nicht** nennt: `login`, `portfolio`, `whoami`,
-`home`, `ls`, `sudo`. Pfeiltasten blättern durch die Eingaben.
+Befehle: `help`, `work`, `about`, `shoutouts`, `splash`, `fetch`, `clear`,
+`exit`. Dazu ein paar, die `help` **nicht** nennt: `login`, `portfolio`,
+`whoami`, `home`, `recs`, `ls`, `sudo`. Pfeiltasten blättern durch die Eingaben.
 
 `fetch` zeigt eine fastfetch-Parodie. Die Angaben zu Betriebssystem und Browser
 werden clientseitig aus dem User-Agent geraten und **nirgendwohin geschickt**.
@@ -77,6 +81,7 @@ server/
   lib/posts.js    Datenzugriff auf Posts, Medien, Kategorien
   lib/pages.js    Datenzugriff auf Freitextseiten und Links
   lib/splashes.js Splash-Texte
+  lib/shoutouts.js Empfehlungen
   lib/write.js    alle schreibenden Zugriffe
   lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
@@ -84,6 +89,7 @@ server/
 public/
   index.html          Homepage
   about/index.html    Über mich, mit Reitern
+  shoutouts/index.html Empfehlungen
   portfolio/index.html   Grid
   portfolio/post.html    Hülle der Detailseite
   404.html
@@ -93,6 +99,7 @@ public/
   js/wheat.js         generativer Hintergrund — der aktive
   js/portfolio.js     Grid, Filter, Sortierung
   js/about.js         Reiter der About-Seite
+  js/shoutouts.js     Empfehlungsliste
   js/splash.js        Splash-Text würfeln
   js/terminal.js      das Terminal auf der Startseite
   js/login.js         Anmeldeformular
@@ -122,7 +129,8 @@ data/             SQLite-Datei (nicht im Repo)
 | `post_categories` | n:m-Verknüpfung |
 | `pages` | Freitextseiten. Gleiche `tab_group` = Reiter derselben Seite, `position` bestimmt die Reihenfolge, `layout` die Darstellung |
 | `links` | Kontakt-/Social-Einträge einer Seite (Label + URL) |
-| `splashes` | die Zeilen unter dem Titel auf der Startseite |
+| `shoutouts` | Empfehlungen. Bewusst eine eigene Tabelle und nicht `posts` — ein Shoutout ist keine eigene Arbeit und soll im Portfolio nicht mitgezählt werden |
+| `splashes` | die Zeilen unter dem Titel auf der Startseite. Kein Längenlimit, kein Umbruch außer an gesetzten Zeilenumbrüchen |
 | `users` | Admin-Zugang, nur Passwort-**Hash** |
 | `sessions` | offene Anmeldungen, nur der **Hash** des Session-Tokens |
 
@@ -142,6 +150,15 @@ tippen lassen:
 | `audio:` | Überschrift, eröffnet eine Gruppe |
 | `mixing: hd 560s` | beschriftete Zeile in der laufenden Gruppe |
 | alles andere | schlichter Eintrag |
+
+### Zwischenspeicher
+
+Die öffentliche API antwortet mit `max-age=0` und einem ETag: Der Browser
+fragt jedes Mal nach und bekommt meist nur ein `304` zurück — billig und
+immer aktuell. Bewusst **ohne** `stale-while-revalidate`; das lieferte nach
+dem Anlegen bis zu eine Minute lang noch den alten Stand aus, was beim
+eigenen Nachschauen nur verwirrt. `s-maxage` gilt nur für einen
+vorgeschalteten Cache, nicht für den Browser.
 
 ### Anmeldung
 

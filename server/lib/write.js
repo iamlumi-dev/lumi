@@ -164,9 +164,11 @@ function removeUpload(src) {
   // pfad muss innerhalb des upload-ordners liegen (schutz gegen ../)
   if (!target.startsWith(config.uploadsDir + path.sep)) return;
 
-  // nur loeschen, wenn keine andere zeile die datei noch benutzt
-  const stillUsed = db.prepare('SELECT 1 FROM media WHERE src = ? OR poster = ? LIMIT 1').get(src, src);
-  if (stillUsed) return;
+  // nur loeschen, wenn die datei nirgends mehr gebraucht wird — weder als
+  // medium eines posts noch als titelbild eines shoutouts
+  const usedByMedia = db.prepare('SELECT 1 FROM media WHERE src = ? OR poster = ? LIMIT 1').get(src, src);
+  const usedByShoutout = db.prepare('SELECT 1 FROM shoutouts WHERE cover = ? LIMIT 1').get(src);
+  if (usedByMedia || usedByShoutout) return;
 
   fs.promises.unlink(target).catch(() => {});
 }
@@ -280,4 +282,44 @@ export function updateSplash(id, fields) {
 
 export function deleteSplash(id) {
   return db.prepare('DELETE FROM splashes WHERE id = ?').run(id).changes > 0;
+}
+
+/* ---- shoutouts ------------------------------------------------------------ */
+
+export function listAllShoutouts() {
+  return db.prepare(`
+    SELECT id, creator, title, kind, url, note, cover, youtube, published, shouted_at
+    FROM shoutouts ORDER BY shouted_at DESC, id DESC
+  `).all().map((s) => ({ ...s, published: !!s.published }));
+}
+
+export function createShoutout(fields) {
+  return db.prepare(`
+    INSERT INTO shoutouts (creator, title, kind, url, note, cover, youtube, published, shouted_at)
+    VALUES (@creator, @title, @kind, @url, @note, @cover, @youtube, @published, @shouted_at)
+  `).run(fields).lastInsertRowid;
+}
+
+export function updateShoutout(id, fields) {
+  const before = db.prepare('SELECT cover FROM shoutouts WHERE id = ?').get(id);
+  if (!before) return false;
+
+  db.prepare(`
+    UPDATE shoutouts SET creator = @creator, title = @title, kind = @kind, url = @url,
+                         note = @note, cover = @cover, youtube = @youtube,
+                         published = @published, shouted_at = @shouted_at
+    WHERE id = @id
+  `).run({ ...fields, id });
+
+  // ausgetauschtes titelbild nicht liegen lassen
+  if (before.cover && before.cover !== fields.cover) removeUpload(before.cover);
+  return true;
+}
+
+export function deleteShoutout(id) {
+  const row = db.prepare('SELECT cover FROM shoutouts WHERE id = ?').get(id);
+  if (!row) return false;
+  db.prepare('DELETE FROM shoutouts WHERE id = ?').run(id);
+  removeUpload(row.cover);
+  return true;
 }

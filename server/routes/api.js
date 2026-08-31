@@ -3,12 +3,17 @@ import { Router } from 'express';
 import { listPosts, getPost, listCategories, neighbours, POST_SIZES } from '../lib/posts.js';
 import { getPage, getPageGroup } from '../lib/pages.js';
 import { activeSplashes } from '../lib/splashes.js';
+import { listShoutouts, shoutoutKindsInUse } from '../lib/shoutouts.js';
 
 export const api = Router();
 
-// kurz cachen: entlastet den server, aber neue posts sind schnell sichtbar
+// der browser fragt jedes mal nach (max-age=0) und bekommt dank etag meist
+// nur ein 304 zurueck — billig und immer aktuell. bewusst OHNE
+// stale-while-revalidate: das lieferte nach dem anlegen bis zu eine minute
+// lang noch den alten stand aus, was beim eigenen nachschauen nur verwirrt.
+// s-maxage gilt nur fuer einen vorgeschalteten cache (cdn), nicht fuer den browser.
 const cache = (seconds) => (req, res, next) => {
-  res.set('Cache-Control', `public, max-age=0, s-maxage=${seconds}, stale-while-revalidate=60`);
+  res.set('Cache-Control', `public, max-age=0, s-maxage=${seconds}`);
   next();
 };
 
@@ -34,6 +39,11 @@ api.get('/posts/:slug', cache(30), (req, res) => {
   const post = getPost(req.params.slug);
   if (!post) return res.status(404).json({ error: 'not found' });
   res.json({ post, ...neighbours(post.slug) });
+});
+
+// --- shoutouts --------------------------------------------------------------
+api.get('/shoutouts', cache(30), (req, res) => {
+  res.json({ shoutouts: listShoutouts(), kinds: shoutoutKindsInUse() });
 });
 
 // --- splash-texte -----------------------------------------------------------

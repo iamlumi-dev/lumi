@@ -13,7 +13,7 @@ if (existing > 0 && !reset) {
 }
 
 if (reset) {
-  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages; DELETE FROM splashes;');
+  db.exec('DELETE FROM post_categories; DELETE FROM media; DELETE FROM posts; DELETE FROM categories; DELETE FROM links; DELETE FROM pages; DELETE FROM splashes; DELETE FROM shoutouts;');
   console.log('… alte inhalte gelöscht');
 }
 
@@ -177,6 +177,43 @@ const PAGES = [
       'mic, recording: lewitt lct 240 pro',
     ].join('\n'),
   },
+  {
+    slug: 'shoutouts',
+    title: 'shoutouts',
+    layout: 'prose',
+    tab_group: 'shoutouts',
+    position: 0,
+    body: 'things other people made that lumi cannot stop playing. nothing here is lumis own work.',
+  },
+];
+
+// beispiele — bewusst erfundene namen, damit klar ist, dass sie ersetzt
+// gehoeren. echte empfehlungen legt lumi im editor an.
+const SHOUTOUTS = [
+  {
+    creator: 'placeholder artist',
+    title: 'a song that goes hard',
+    kind: 'song',
+    url: '',
+    note: 'this is an example entry. replace it in the editor — creator, title, a link, and one line about why it rules.',
+    date: '2026-08-28',
+  },
+  {
+    creator: 'another placeholder',
+    title: 'an entire record',
+    kind: 'album',
+    url: '',
+    note: 'shoutouts do not need a link, a cover or even a title. only the name is required.',
+    date: '2026-08-20',
+  },
+  {
+    creator: 'someone worth following',
+    title: '',
+    kind: 'artist',
+    url: '',
+    note: '',
+    date: '2026-08-11',
+  },
 ];
 
 
@@ -217,6 +254,10 @@ const linkCategory = db.prepare(
   'INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)'
 );
 const insertSplash = db.prepare('INSERT INTO splashes (text) VALUES (?)');
+const insertShoutout = db.prepare(`
+  INSERT INTO shoutouts (creator, title, kind, url, note, shouted_at)
+  VALUES (@creator, @title, @kind, @url, @note, @date)
+`);
 const insertPage = db.prepare(`
   INSERT INTO pages (slug, title, body, layout, tab_group, position)
   VALUES (@slug, @title, @body, @layout, @tab_group, @position)
@@ -261,6 +302,7 @@ db.transaction(() => {
   });
 
   SPLASHES.forEach((text) => insertSplash.run(text));
+  SHOUTOUTS.forEach((so) => insertShoutout.run(so));
 
   PAGES.forEach((pg) => {
     insertPage.run({
@@ -272,4 +314,4 @@ db.transaction(() => {
 })();
 
 const linkCount = PAGES.reduce((n, p) => n + (p.links || []).length, 0);
-console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seiten, ${linkCount} links, ${SPLASHES.length} splashes angelegt`);
+console.log(`✓ ${CATEGORIES.length} kategorien, ${POSTS.length} posts, ${PAGES.length} seiten, ${linkCount} links, ${SPLASHES.length} splashes, ${SHOUTOUTS.length} shoutouts angelegt`);

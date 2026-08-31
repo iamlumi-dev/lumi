@@ -257,3 +257,11 @@ img.media-thumb { display: block; }
 }
 
 .form-row textarea { flex: 1 1 auto; }
+
+/*--- shoutout-vorschaubild ---*/
+.shout-thumb {
+    width: 56px;
+    height: 56px;
+    flex: 0 0 56px;
+    overflow: hidden;
+}

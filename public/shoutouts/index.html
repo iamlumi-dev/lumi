@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>work ✧ lumis work</title>
-  <meta name="description" content="alles, was lumi gebaut hat — filterbar nach kategorie.">
+  <title>shoutouts ✧ lumis work</title>
+  <meta name="description" content="things other people made that lumi cannot stop playing.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Xanh+Mono:ital@0;1&display=swap" rel="stylesheet">
@@ -15,42 +15,35 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 
   <header class="portfolio-head">
-    <h1>lumis work</h1>
+    <h1>shoutouts</h1>
     <nav class="portfolio-nav">
       <a href="/"><button>home</button></a>
+      <a href="/portfolio/"><button>work</button></a>
       <a href="/about/"><button>about me</button></a>
-      <a href="/shoutouts/"><button>shoutouts</button></a>
     </nav>
   </header>
 
-  <!-- filter- und sortierleiste. wird aus /api/categories befuellt. -->
-  <section id="controls" aria-label="filter und sortierung">
-    <div class="control-row" id="filterRow">
+  <!-- einleitungszeile und einträge kommen beide aus der datenbank -->
+  <section id="controls" aria-label="filter">
+    <p id="intro" class="dim-line"></p>
+    <div class="control-row" id="filterRow" hidden>
       <span class="control-label">filter by</span>
       <button class="chip" data-filter="all" aria-pressed="true">all</button>
     </div>
-
-    <div class="control-row" id="sortRow">
-      <span class="control-label">sort by</span>
-      <button class="chip" data-sort="newest" aria-pressed="true">newest</button>
-      <button class="chip" data-sort="oldest" aria-pressed="false">oldest</button>
-      <button class="chip" data-sort="title"  aria-pressed="false">a–z</button>
-    </div>
-
     <div class="control-row">
       <span class="control-label"></span>
       <span id="status" role="status" aria-live="polite">loading …</span>
     </div>
   </section>
 
-  <main id="gridWrap">
-    <ul id="grid"></ul>
-    <p id="empty" hidden>nothing here with those filters …</p>
+  <main>
+    <ul id="shouts" class="shouts"></ul>
+    <p id="empty" hidden>nothing here yet …</p>
   </main>
 
   <footer><p>&copy; made by lumi 2026</p></footer>
 
   <script src="/js/site.js" defer></script>
-  <script src="/js/portfolio.js" defer></script>
+  <script src="/js/shoutouts.js" defer></script>
 </body>
 </html>

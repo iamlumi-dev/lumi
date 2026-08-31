@@ -965,3 +965,99 @@ html.home { overflow-x: hidden; }
     .term-body { height: 11rem; }
     .term-fetch { flex-direction: column; gap: 0.2rem; }
 }
+
+/*=== SHOUTOUTS ===*/
+/* eine liste, kein raster: hier zaehlt der text, nicht das bild. */
+.dim-line {
+    font-size: 0.85rem;
+    opacity: 0.55;
+    max-width: 60ch;
+    margin: 0 0 0.4rem 0;
+}
+
+.shouts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.shouts.reflowing { opacity: 0; }
+
+.shout { border-bottom: 1.5px solid var(--altbgclr); }
+.shout.hidden { display: none; }
+
+.shout-link {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem 0;
+    color: var(--txtclr);
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* ganze zeile klickbar, aber ohne den kursiv-hover der fliesstext-links */
+a.shout-link:hover { font-style: normal; }
+
+/*--- titelbild ---*/
+.shout-cover {
+    flex: 0 0 auto;
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border: 1.5px solid var(--altbgclr);
+    /* wie im portfolio: entsaettigt, farbe erst im hover */
+    filter: grayscale(1) brightness(0.85) contrast(1.05);
+    transition: filter 0.5s ease-in-out;
+}
+
+.shout-link:hover .shout-cover { filter: none; }
+
+/* ohne bild steht dort nur die art, als platzhalter in der gleichen groesse */
+.shout-cover-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    opacity: 0.4;
+    filter: none;
+}
+
+/*--- text ---*/
+.shout-main { flex: 1 1 auto; min-width: 0; }
+
+.shout-head {
+    font-size: 1rem;
+    line-height: 1.3;
+    margin-bottom: 0.2rem;
+}
+
+.shout-creator { color: var(--titleclr); transition: color 0.3s ease-in-out; }
+.shout-link:hover .shout-creator { color: var(--acntclr); }
+
+.shout-dash { opacity: 0.4; }
+.shout-title { font-style: italic; }
+
+.shout-note {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0 0 0.35rem 0;
+    max-width: 70ch;
+    opacity: 0.85;
+}
+
+.shout-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+    font-size: 0.7rem;
+    opacity: 0.55;
+}
+
+.shout-go { transition: color 0.3s ease-in-out; }
+.shout-link:hover .shout-go { color: var(--acntclr); opacity: 1; }
+
+@media (max-width: 460px) {
+    .shout-cover { width: 56px; height: 56px; }
+    .shout-link { gap: 0.7rem; }
+}

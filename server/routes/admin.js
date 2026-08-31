@@ -14,6 +14,7 @@ import { config } from '../config.js';
 import { db } from '../db.js';
 import { POST_SIZES, listCategories } from '../lib/posts.js';
 import { PAGE_LAYOUTS } from '../lib/pages.js';
+import { SHOUTOUT_KINDS } from '../lib/shoutouts.js';
 import * as store from '../lib/write.js';
 import { BadRequest, str, oneOf, bool, int, intList, dateTime, url, youtubeId } from '../lib/validate.js';
 
@@ -317,6 +318,57 @@ admin.post('/pages/:slug/links/order', handle((req, res) => {
   const slug = str(req.params.slug, 'slug', { max: 80 });
   store.reorderLinks(slug, intList(req.body?.ids || [], 'reihenfolge'));
   res.json({ links: store.listLinks(slug) });
+}));
+
+/* =======================================================================
+   shoutouts
+   ======================================================================= */
+
+function shoutoutFields(body) {
+  const link = body.url ? url(body.url, 'adresse') : '';
+
+  // ist die adresse ein youtube-link, merken wir uns die video-id — das
+  // vorschaubild kommt dann von dort, wenn kein eigenes cover gesetzt ist
+  let youtube = null;
+  if (link) {
+    try { youtube = youtubeId(link, 'adresse'); } catch { youtube = null; }
+  }
+
+  return {
+    creator: str(body.creator, 'wer', { min: 1, max: 120 }),
+    title: str(body.title, 'was', { max: 200 }),
+    kind: oneOf(str(body.kind || 'song', 'art'), 'art', SHOUTOUT_KINDS),
+    url: link,
+    note: str(body.note, 'notiz', { max: 1000 }),
+    // nur pfade unter /uploads/ — kein fremdes bild einbetten, das waere
+    // eine csp-verletzung und ein zaehlpixel fuer den fremden server
+    cover: body.cover ? url(body.cover, 'titelbild', { allowRelative: true }) : null,
+    youtube,
+    published: bool(body.published),
+    shouted_at: (dateTime(body.date || new Date().toISOString().slice(0, 10), 'datum') || '').slice(0, 10),
+  };
+}
+
+admin.get('/shoutouts', (req, res) =>
+  res.json({ shoutouts: store.listAllShoutouts(), kinds: SHOUTOUT_KINDS }));
+
+admin.post('/shoutouts', handle((req, res) => {
+  store.createShoutout(shoutoutFields(req.body || {}));
+  res.status(201).json({ shoutouts: store.listAllShoutouts() });
+}));
+
+admin.patch('/shoutouts/:id', handle((req, res) => {
+  if (!store.updateShoutout(int(req.params.id, 'id'), shoutoutFields(req.body || {}))) {
+    return res.status(404).json({ error: 'nicht gefunden' });
+  }
+  res.json({ shoutouts: store.listAllShoutouts() });
+}));
+
+admin.delete('/shoutouts/:id', handle((req, res) => {
+  if (!store.deleteShoutout(int(req.params.id, 'id'))) {
+    return res.status(404).json({ error: 'nicht gefunden' });
+  }
+  res.json({ shoutouts: store.listAllShoutouts() });
 }));
 
 /* =======================================================================

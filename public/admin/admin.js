@@ -527,6 +527,154 @@
   };
 
   /* =====================================================================
+     abschnitt: shoutouts
+     ===================================================================== */
+
+  const SHOUTOUTS = {
+    title: 'shoutouts',
+    async render(into) {
+      const { shoutouts, kinds } = await api('/admin/shoutouts');
+
+      into.appendChild(el('h2', { text: 'shoutouts' }));
+      into.appendChild(el('p', { class: 'dim', text: 'things other people made. only the name is required — link, title, note and cover are all optional. a youtube link brings its own thumbnail.' }));
+
+      // anlegen steht oben, wie bei den splashes
+      into.appendChild(shoutoutForm(null, kinds));
+
+      into.appendChild(el('h3', { text: `${shoutouts.length} entries` }));
+      const rows = el('div', { class: 'rows' });
+      for (const so of shoutouts) {
+        rows.appendChild(el('div', { class: `row${so.published ? '' : ' muted'}` }, [
+          thumbFor(so),
+          el('div', { class: 'row-main' }, [
+            el('div', { class: 'row-title', text: [so.creator, so.title].filter(Boolean).join(' — ') }),
+            el('div', { class: 'row-sub', text:
+              [so.kind, so.shouted_at, so.published ? null : 'hidden', so.url || 'no link']
+                .filter(Boolean).join('  ·  ') }),
+            so.note ? el('div', { class: 'row-sub', text: so.note }) : null,
+          ]),
+          el('div', { class: 'row-actions' }, [
+            el('button', { type: 'button', class: 'mini', text: 'edit',
+              onclick: () => openShoutout(so, kinds) }),
+            el('button', { type: 'button', class: 'mini', text: 'delete',
+              onclick: guard(async () => {
+                if (!confirmed(`delete the shoutout for "${so.creator}"?`)) return;
+                await api(`/admin/shoutouts/${so.id}`, { method: 'DELETE' });
+                toast('deleted');
+                show('shoutouts');
+              }) }),
+          ]),
+        ]));
+      }
+      into.appendChild(rows);
+    },
+  };
+
+  function thumbFor(so) {
+    const src = so.cover || (so.youtube ? `https://i.ytimg.com/vi/${so.youtube}/default.jpg` : null);
+    return src
+      ? el('img', { class: 'media-thumb shout-thumb', src, alt: '' })
+      : el('div', { class: 'media-thumb shout-thumb', text: so.kind });
+  }
+
+  const openShoutout = guard((so, kinds) => {
+    panel.replaceChildren();
+    panel.appendChild(el('h2', { text: `edit — ${so.creator}` }));
+    panel.appendChild(shoutoutForm(so, kinds));
+    panel.appendChild(el('div', { class: 'toolbar' }, [
+      el('button', { type: 'button', class: 'roomy', text: 'back to list',
+        onclick: () => show('shoutouts') }),
+    ]));
+  });
+
+  // dasselbe formular fuers anlegen und fuers bearbeiten
+  function shoutoutForm(so, kinds) {
+    const isNew = !so;
+    const data = so || { creator: '', title: '', kind: 'song', url: '', note: '',
+                         cover: null, published: true, shouted_at: new Date().toISOString().slice(0, 10) };
+
+    const form = el('form', { class: 'editor-form form' });
+
+    form.appendChild(field('who — artist, band, person', input('creator', data.creator, { required: true, maxlength: 120 })));
+    form.appendChild(field('what — track, record, … (optional)', input('title', data.title, { maxlength: 200 })));
+    form.appendChild(field('kind', select('kind', kinds.map((k) => ({ value: k, label: k })), data.kind)));
+    form.appendChild(field('date', input('date', (data.shouted_at || '').slice(0, 10), { type: 'date' })));
+    form.appendChild(field('link (optional) — a youtube link also supplies the thumbnail',
+      input('url', data.url, { maxlength: 2000, placeholder: 'https://…' }), true));
+    form.appendChild(field('why you like it (optional)', textarea('note', data.note, 3), true));
+
+    // cover: entweder hochladen oder das youtube-bild nehmen
+    let cover = data.cover || null;
+    const preview = el('div', { class: 'media-thumb shout-thumb' });
+    const paintPreview = () => {
+      preview.replaceChildren();
+      if (cover) {
+        const img = el('img', { src: cover, alt: '' });
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        preview.appendChild(img);
+      } else {
+        preview.textContent = 'no cover';
+      }
+    };
+    paintPreview();
+
+    const picker = el('input', { type: 'file', accept: 'image/*', hidden: true });
+    picker.addEventListener('change', guard(async () => {
+      const file = picker.files?.[0];
+      picker.value = '';
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf }, body: fd,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'upload failed');
+      cover = body.src;
+      paintPreview();
+      toast('cover uploaded — remember to save');
+    }));
+
+    form.appendChild(field('cover (optional)', el('div', { class: 'form-row' }, [
+      preview,
+      el('button', { type: 'button', class: 'roomy', text: 'choose image', onclick: () => picker.click() }),
+      el('button', { type: 'button', class: 'roomy', text: 'remove',
+        onclick: () => { cover = null; paintPreview(); toast('cover cleared — remember to save'); } }),
+      picker,
+    ]), true));
+
+    form.appendChild(el('div', { class: 'form-row wide-field' }, [
+      checkbox('published', 'visible on the page', data.published),
+    ]));
+
+    form.appendChild(el('div', { class: 'form-actions' }, [
+      el('button', { type: 'submit', class: 'roomy', text: isNew ? 'add' : 'save' }),
+    ]));
+
+    form.addEventListener('submit', guard(async (e) => {
+      e.preventDefault();
+      const payload = {
+        creator: val(form, 'creator'),
+        title: val(form, 'title'),
+        kind: val(form, 'kind'),
+        url: val(form, 'url'),
+        note: val(form, 'note'),
+        cover,
+        published: checked(form, 'published'),
+        date: val(form, 'date'),
+      };
+      if (isNew) await api('/admin/shoutouts', { method: 'POST', body: payload });
+      else await api(`/admin/shoutouts/${so.id}`, { method: 'PATCH', body: payload });
+      toast(isNew ? 'added' : 'saved');
+      show('shoutouts');
+    }));
+
+    return form;
+  }
+
+  /* =====================================================================
      abschnitt: seiten (about)
      ===================================================================== */
 
@@ -534,10 +682,28 @@
     title: 'about',
     async render(into) {
       const { pages } = await api('/admin/pages');
-      into.appendChild(el('h2', { text: 'about page' }));
-      into.appendChild(el('p', { class: 'dim', text: 'each entry is one tab. position decides the order.' }));
+      into.appendChild(el('h2', { text: 'pages' }));
+      into.appendChild(el('p', { class: 'dim', text: 'free text on the site. entries sharing a group are the tabs of one page; position decides their order.' }));
 
+      // nach gruppe sortiert ausgeben, damit klar ist, was wo landet
+      const groups = new Map();
       for (const page of pages) {
+        const key = page.tab_group || '(standalone)';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(page);
+      }
+
+      for (const [group, entries] of groups) {
+        into.appendChild(el('h2', { text: group === 'about' ? 'about page — tabs' : group }));
+        for (const page of entries) await renderPage(into, page);
+      }
+    },
+  };
+
+  // ein bearbeitungsformular fuer eine seite, dahinter bei layout "links"
+  // noch die linkliste
+  async function renderPage(into, page) {
+    {
         const form = el('form', { class: 'editor-form form' });
         into.appendChild(el('h3', { text: `${page.title}  ·  /${page.slug}` }));
 
@@ -569,9 +735,8 @@
         into.appendChild(form);
 
         if (page.layout === 'links') into.appendChild(await linksBox(page.slug));
-      }
-    },
-  };
+    }
+  }
 
   async function linksBox(slug) {
     const box = el('div');
@@ -739,7 +904,8 @@
      rahmen
      ===================================================================== */
 
-  const SECTIONS = { posts: POSTS, categories: CATEGORIES, pages: PAGES, splashes: SPLASHES, account: ACCOUNT };
+  const SECTIONS = { posts: POSTS, categories: CATEGORIES, shoutouts: SHOUTOUTS,
+                     pages: PAGES, splashes: SPLASHES, account: ACCOUNT };
 
   const show = guard(async (name) => {
     const section = SECTIONS[name] || POSTS;
@@ -753,7 +919,7 @@
     panel.replaceChildren(fresh);
 
     // wo es eine anlegen-zeile ganz oben gibt, steht der cursor gleich drin
-    panel.querySelector('.form-row input[name^="new"]')?.focus();
+    panel.querySelector('.form-row [name^="new"], .editor-form [name="creator"]')?.focus();
   });
 
   nav.addEventListener('click', (e) => {

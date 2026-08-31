@@ -101,6 +101,27 @@ CREATE TABLE IF NOT EXISTS splashes (
 
 CREATE INDEX IF NOT EXISTS idx_splashes_active ON splashes (active);
 
+-- ---- shoutouts -------------------------------------------------------------
+-- empfehlungen: sachen von anderen leuten, die lumi gut findet. bewusst eine
+-- eigene tabelle und nicht die posts — ein shoutout ist keine eigene arbeit
+-- und soll im portfolio nicht mitgezaehlt werden.
+CREATE TABLE IF NOT EXISTS shoutouts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  creator    TEXT    NOT NULL,                   -- wer es gemacht hat
+  title      TEXT    NOT NULL DEFAULT '',        -- wie es heisst
+  kind       TEXT    NOT NULL DEFAULT 'song'
+               CHECK (kind IN ('song','album','artist','video','other')),
+  url        TEXT    NOT NULL DEFAULT '',        -- wo man es findet
+  note       TEXT    NOT NULL DEFAULT '',        -- warum
+  cover      TEXT,                               -- optionales bild unter /uploads/
+  youtube    TEXT,                               -- video-id, falls url ein yt-link ist
+  published  INTEGER NOT NULL DEFAULT 1 CHECK (published IN (0,1)),
+  shouted_at TEXT    NOT NULL DEFAULT (date('now')),
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_shoutouts_public ON shoutouts (published, shouted_at DESC);
+
 -- ---- freitext-inhalte (about me etc.) -------------------------------------
 -- damit lumi spaeter auch die "ueber mich"-seite im admin bearbeiten kann,
 -- ohne dass jemand html anfassen muss.
