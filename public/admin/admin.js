@@ -695,20 +695,31 @@
 
       for (const [group, entries] of groups) {
         into.appendChild(el('h2', { text: group === 'about' ? 'about page — tabs' : group }));
-        for (const page of entries) await renderPage(into, page);
+        // die gruppengroesse entscheidet, ob "position" ueberhaupt etwas tut
+        for (const page of entries) await renderPage(into, page, entries.length);
       }
     },
   };
 
   // ein bearbeitungsformular fuer eine seite, dahinter bei layout "links"
   // noch die linkliste
-  async function renderPage(into, page) {
+  async function renderPage(into, page, siblings = 1) {
     {
         const form = el('form', { class: 'editor-form form' });
         into.appendChild(el('h3', { text: `${page.title}  ·  /${page.slug}` }));
 
-        form.appendChild(field('tab label', input('title', page.title, { required: true, maxlength: 80 })));
-        form.appendChild(field('position', input('position', page.position, { type: 'number', min: 0, max: 999 })));
+        // bei einer seite mit reitern ist "tab label" die beschriftung des
+        // reiters, sonst schlicht die ueberschrift der seite
+        form.appendChild(field(siblings > 1 ? 'tab label' : 'page heading',
+          input('title', page.title, { required: true, maxlength: 80 })));
+
+        // position ordnet die reiter einer seite. gibt es nur einen, hat sie
+        // keine wirkung — dann wird sie auch nicht angezeigt, sondern nur
+        // unveraendert mitgeschickt.
+        if (siblings > 1) {
+          form.appendChild(field('position — lower numbers come first',
+            input('position', page.position, { type: 'number', min: 0, max: 999 })));
+        }
         form.appendChild(field('layout', select('layout', [
           { value: 'prose', label: 'prose — blank line = new paragraph, "## text" = subheading' },
           { value: 'list', label: 'list — "group:" opens a group, "key: value" a labelled row' },
@@ -733,7 +744,8 @@
               title: val(form, 'title'),
               body: val(form, 'body'),
               layout: val(form, 'layout'),
-              position: Number(val(form, 'position')),
+              // unveraendert weiterreichen, wenn das feld nicht angezeigt wird
+              position: siblings > 1 ? Number(val(form, 'position')) : page.position,
             },
           });
           toast('saved');
