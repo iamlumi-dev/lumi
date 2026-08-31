@@ -265,3 +265,25 @@ img.media-thumb { display: block; }
     flex: 0 0 56px;
     overflow: hidden;
 }
+
+/*--- linkliste: drei spalten mit ueberschrift ---*/
+.link-fields {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1.4fr;
+    gap: 0.4rem 0.8rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.link-heads {
+    font-size: 0.7rem;
+    opacity: 0.45;
+    margin-bottom: 0.15rem;
+}
+
+@media (max-width: 720px) {
+    /* untereinander gestapelt braucht es keine spaltenkoepfe mehr —
+       die platzhalter in den feldern reichen dann */
+    .link-heads { display: none; }
+    .link-fields { grid-template-columns: 1fr; }
+}

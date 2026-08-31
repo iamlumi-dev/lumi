@@ -714,7 +714,13 @@
           { value: 'list', label: 'list — "group:" opens a group, "key: value" a labelled row' },
           { value: 'links', label: 'links — text plus the link list below' },
         ], page.layout), true));
-        form.appendChild(field('text', textarea('body', page.body, 10), true));
+        // bei layout "links" ist der grosse kasten nur die einleitung —
+        // die eintraege selbst kommen in die liste darunter
+        form.appendChild(field(
+          page.layout === 'links'
+            ? 'intro text above the list (optional) — the entries go in the list further down'
+            : 'text',
+          textarea('body', page.body, page.layout === 'links' ? 3 : 10), true));
         form.appendChild(el('div', { class: 'form-actions' }, [
           el('button', { type: 'submit', class: 'roomy', text: 'save' }),
         ]));
@@ -766,7 +772,7 @@
       });
 
       rows.appendChild(el('div', { class: 'row' }, [
-        el('div', { class: 'media-fields' }, [label, address, note]),
+        el('div', { class: 'link-fields' }, [label, address, note]),
         el('div', { class: 'row-actions' }, [
           el('button', { type: 'button', class: 'mini', text: '↑', onclick: () => move(-1) }),
           el('button', { type: 'button', class: 'mini', text: '↓', onclick: () => move(1) }),
@@ -780,14 +786,26 @@
       ]));
     });
 
-    const newLabel = input('newLabel', '', { placeholder: 'label, e.g. bandcamp' });
+    const newLabel = input('newLabel', '', { placeholder: 'e.g. a friend\u2019s name' });
     const newUrl = input('newUrl', '', { placeholder: 'https://… or mailto:you@example.com' });
-    const newNote = input('newNote', '', { placeholder: 'one line about it (optional)' });
+    const newNote = input('newNote', '', { placeholder: 'optional' });
 
-    box.appendChild(el('h3', { text: 'links' }));
+    box.appendChild(el('h3', { text: 'the list — this is where the entries go' }));
+
+    // ueberschriften ueber den drei spalten: ohne die ist nicht zu erraten,
+    // welches feld nachher der anklickbare text ist. gleiche struktur wie die
+    // eingabezeile darunter, damit die spalten wirklich buendig stehen.
+    box.appendChild(el('div', { class: 'form-row link-heads' }, [
+      el('div', { class: 'link-fields' }, [
+        el('span', { text: 'the clickable text' }),
+        el('span', { text: 'where it goes' }),
+        el('span', { text: 'one line about it (optional)' }),
+      ]),
+    ]));
+
     box.appendChild(rows);
     box.appendChild(el('div', { class: 'form-row' }, [
-      newLabel, newUrl, newNote,
+      el('div', { class: 'link-fields' }, [newLabel, newUrl, newNote]),
       el('button', { type: 'button', class: 'roomy', text: 'add',
         onclick: guard(async () => {
           if (!newLabel.value.trim() || !newUrl.value.trim()) return;
