@@ -6,9 +6,6 @@
     --altbgclr: #36611E;  /* flaechen: mittleres moosgruen (buttons, chips, linien) */
     --acntclr:  #6CC23D;  /* akzent: kraeftiges grasgruen, nur fuer aktive zustaende */
 
-    /* wird von site.js alle 115 ms neu gewuerfelt — sample & hold */
-    --sh-value: 1.1;
-
     /* grid-stellschrauben, per media query ueberschrieben */
     --cols: 4;
     --gap: 12px;
@@ -126,12 +123,9 @@ button {
     transition: color 0.8s ease-in-out, background-color 0.3s ease-in-out;
 }
 
-button:hover {
-    font-style: italic;
-    scale: var(--sh-value);
-}
+button:hover { font-style: italic; }
 
-button[aria-current="page"] { background-color: var(--acntclr); color: var(--bgclr); }
+button[aria-current="page"] { background-color: var(--titleclr); color: var(--bgclr); }
 
 /* breitere buttons, wo ein wort nicht reicht */
 button.roomy { max-width: none; padding: 0.15rem 0.7rem; }
@@ -162,7 +156,6 @@ button.roomy { max-width: none; padding: 0.15rem 0.7rem; }
     background-color: var(--altbgclr);
     color: var(--txtclr);
     border: none;
-    border-radius: 4px;
     padding: 0.3rem 0.6rem;
     width: auto;
     max-width: none;
@@ -170,17 +163,19 @@ button.roomy { max-width: none; padding: 0.15rem 0.7rem; }
     transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
-.chip:hover { font-style: italic; scale: var(--sh-value); }
+.chip:hover { font-style: italic; }
 
+/* ausgewaehlt: dieselbe flaeche wie die ueberschriften, damit kein
+   dritter gruenton auf der seite auftaucht. text bleibt invertiert. */
 .chip[aria-pressed="true"],
 .chip.active {
-    background-color: var(--acntclr);
+    background-color: var(--titleclr);
     color: var(--bgclr);
 }
 
 /* nicht klickbare variante, z.b. auf der detailseite */
 span.chip { cursor: default; }
-span.chip:hover { font-style: normal; scale: 1; }
+span.chip:hover { font-style: normal; }
 
 /*=== PORTFOLIO — SEITENGERUEST ===*/
 /* die einzige seite, die scrollt. der rest bleibt ein viewport. */
@@ -288,7 +283,7 @@ body.portfolio footer p { margin-left: 0; }
 .tile:hover { font-style: normal; border-color: var(--acntclr); }
 
 /* focus/dim: haengt eine kachel im hover, dimmt das grid alles andere ab */
-#grid.mm-focusing .tile:not(.mm-active) { opacity: 0.35; }
+#grid.mm-focusing .tile:not(.mm-active) { opacity: 0.7; }
 
 /* ausgefilterte kacheln verschwinden weich und geben ihren platz frei */
 .tile.hidden { display: none; }
@@ -339,17 +334,6 @@ body.portfolio footer p { margin-left: 0; }
 .tile:hover .tile-media video { filter: none; }
 .tile:hover .tile-media::after { opacity: 0; }
 
-/* lesbarkeits-schleier unter dem text */
-.tile-media::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, var(--bgclr) 0%, transparent 65%);
-    opacity: 0.92;
-    z-index: 1;
-    pointer-events: none;
-}
-
 /*--- textebene ---*/
 .tile-body {
     position: relative;
@@ -358,12 +342,21 @@ body.portfolio footer p { margin-left: 0; }
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 0.35rem;
-    padding: 0.8rem;
 }
 
 /* posts ohne medium: text steht oben, sonst wirkt die kachel unten schwer */
 .tile.no-media .tile-body { justify-content: flex-start; }
+
+/* der textbalken: deckende flaeche ueber die volle kachelbreite.
+   ohne ihn stuende der text direkt auf dem medium und waere bei
+   aehnlichem farbton nicht mehr zu lesen. */
+.tile-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.8rem;
+    background-color: var(--bgclr);
+}
 
 .tile-title {
     font-family: "Cal Sans", sans-serif;
@@ -577,6 +570,4 @@ body.post #selections { margin-top: 2.5rem; justify-content: flex-start; max-wid
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
     }
-    button:hover { scale: 1; }
-    .chip:hover { scale: 1; }
 }

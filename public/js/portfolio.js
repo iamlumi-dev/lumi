@@ -146,16 +146,21 @@
     const body = document.createElement('div');
     body.className = 'tile-body';
 
+    // der text sitzt in einem eigenen balken mit deckender flaeche — sonst
+    // steht er je nach medium auf einem gleich hellen hintergrund
+    const bar = document.createElement('div');
+    bar.className = 'tile-bar';
+
     const h2 = document.createElement('h2');
     h2.className = 'tile-title';
     h2.textContent = post.title;
-    body.appendChild(h2);
+    bar.appendChild(h2);
 
     if (post.summary) {
       const p = document.createElement('p');
       p.className = 'tile-summary';
       p.textContent = post.summary;
-      body.appendChild(p);
+      bar.appendChild(p);
     }
 
     const meta = document.createElement('div');
@@ -177,7 +182,8 @@
       meta.appendChild(cats);
     }
 
-    body.appendChild(meta);
+    bar.appendChild(meta);
+    body.appendChild(bar);
     link.appendChild(body);
     li.appendChild(link);
 

@@ -60,9 +60,9 @@ public/
   portfolio/post.html    Hülle der Detailseite
   404.html
   css/style.css       das gesamte Design-System, in Blöcke kommentiert
-  js/site.js          Hintergrund-Sketch würfeln + Sample-and-Hold
-  js/roots.js         generativer Hintergrund, Variante 1
-  js/wheat.js         generativer Hintergrund, Variante 2
+  js/site.js          lädt den Hintergrund-Sketch
+  js/roots.js         generativer Hintergrund — derzeit stillgelegt
+  js/wheat.js         generativer Hintergrund — der aktive
   js/portfolio.js     Grid, Filter, Sortierung
   js/post.js          Detailseite inkl. eigenem Audio-Player
   uploads/            hochgeladene Medien (nicht im Repo)
@@ -113,35 +113,54 @@ einer Spalte wird jede Kachel quadratisch).
 ## Abweichungen von `style.md`
 
 Der Style Guide beschreibt eine Seite ohne Grid und ohne Scrollen. Ein Portfolio
-braucht beides. Bewusst abgewichen wird an genau diesen Stellen:
+braucht beides. Bewusst abgewichen wird an diesen Stellen:
 
 1. **Das Portfolio scrollt**, alle anderen Seiten bleiben ein Viewport.
 2. **Es gibt ein Grid** — aber ohne Karten-Optik: keine Schatten, keine
-   Rundungen, keine Flächenfarben. Eine Kachel ist eine 1,5-px-Linie in
+   Rundungen, keine Verläufe. Eine Kachel ist eine 1,5-px-Linie in
    `--altbgclr`, sonst nichts.
 3. **Es gibt Fotos/Videos.** Im Raster laufen sie entsättigt und grün getönt
    (`mix-blend-mode: color`), volle Farbe erst im Hover und auf der Detailseite.
    Damit bleibt die Übersicht monochrom.
-4. **`filter` wird animiert**, obwohl der Guide nur `opacity`, `color`,
-   `background-color`, `stroke`, `scale` und `font-style` vorsieht — anders
-   lässt sich die Entsättigung nicht weich auflösen. Dauer und Easing bleiben
-   bei `0.5s ease-in-out`.
-5. **Die Navigation im Portfolio-Kopf ist dauerhaft sichtbar** statt „quiet".
+4. **Der Kacheltext sitzt auf einem deckenden Balken** in `--bgclr` — also auf
+   einer Fläche, die der Guide so nicht vorsieht. Ohne ihn stünde der Text
+   direkt auf dem Medium und wäre bei ähnlichem Farbton nicht mehr lesbar;
+   bei Posts ohne Medium wirkte er außerdem verloren.
+5. **`filter` wird animiert**, obwohl der Guide nur `opacity`, `color`,
+   `background-color`, `stroke` und `font-style` vorsieht — anders lässt sich
+   die Entsättigung nicht weich auflösen. Dauer und Easing bleiben bei
+   `0.5s ease-in-out`.
+6. **Die Navigation im Portfolio-Kopf ist dauerhaft sichtbar** statt „quiet".
    Auf einer scrollenden Arbeitsseite ist unklar, was „den Inhalt hovern"
    heißen soll. Auf Homepage, About und Detailseite ist die Quiet-UI aktiv.
-6. **Focus/Dim dimmt auf `0.35` statt `0.12`.** Bei zehn Kacheln nebeneinander
+7. **Focus/Dim dimmt auf `0.7` statt `0.12`.** Bei zehn Kacheln nebeneinander
    ist 0.12 unlesbar.
-7. **Eigener Audio-Player.** Die nativen Browser-Controls sind hellgrau-weiß
+8. **Eigener Audio-Player.** Die nativen Browser-Controls sind hellgrau-weiß
    und würden die Palette sprengen; ersetzt durch Text-Button, dünne Linie und
    Zeitangabe in Xanh Mono.
+9. **Kein Sample-and-Hold.** Der Guide nennt das pulsierende `scale` auf
+   gehoverten Buttons ein Signature-Detail; im Gebrauch stört es. Der
+   Hover-Effekt ist jetzt nur noch die Kursivstellung. Damit entfällt auch
+   der Taktgeber in `site.js` und die Variable `--sh-value`.
+10. **Chips sind kantig.** Der Guide erlaubt ihnen als einziger Komponente
+    `border-radius: 4px` — damit waren sie die einzigen runden Elemente der
+    Seite. Jetzt haben sie dieselben Ecken wie alle anderen Buttons.
+11. **Der ausgewählte Chip nutzt `--titleclr`, nicht `--acntclr`.** Sonst
+    steht neben dem Überschriften-Grün ein dritter Grünton in der Filterleiste.
+    `--acntclr` bleibt für die Hover-Akzente reserviert (Kachelrahmen,
+    Kacheltitel, Prev/Next, Fokus-Outline, Audio-Regler).
+12. **Nur ein Hintergrund-Sketch.** Der Guide würfelt bei jedem Besuch zwischen
+    „roots" und „wheat"; „roots" ist vorerst stillgelegt. Die Datei liegt
+    weiter unter `public/js/roots.js` — zum Reaktivieren genügt es, sie in
+    `site.js` wieder in die Liste `scripts` aufzunehmen.
 
 Alles andere folgt dem Guide: fünf Farben, zwei Schriften, Kleinschreibung,
-`ease-in-out`, Sample-and-Hold auf gehoverten Buttons, generativer Hintergrund,
-`✧` im `<title>`, Kommentare deutsch, UI-Texte englisch.
+`ease-in-out`, Quiet-UI, generativer Hintergrund, `✧` im `<title>`,
+Kommentare deutsch, UI-Texte englisch.
 
 ## Barrierefreiheit
 
-`prefers-reduced-motion` schaltet Übergänge, den Sample-and-Hold-Scale und den
-animierten Hintergrund ab. Filter-Chips sind echte Buttons mit `aria-pressed`,
-die Trefferzahl steht in einem `aria-live`-Bereich, und Tastaturfokus deckt die
-Quiet-UI genauso auf wie der Mauszeiger.
+`prefers-reduced-motion` schaltet Übergänge und den animierten Hintergrund ab.
+Filter-Chips sind echte Buttons mit `aria-pressed`, die Trefferzahl steht in
+einem `aria-live`-Bereich, und Tastaturfokus deckt die Quiet-UI genauso auf wie
+der Mauszeiger.
