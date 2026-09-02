@@ -55,7 +55,7 @@ const qInsertPost = db.prepare(`
 
 export function createPost(fields) {
   const slug = fields.slug ? uniqueSlug(db, 'posts', fields.slug) : uniqueSlug(db, 'posts', fields.title);
-  const id = qInsertPost.run({ ...fields, slug }).lastInsertRowid;
+  const id = qInsertPost.run({ ...fields, slug, size: fields.size ?? 'small' }).lastInsertRowid;
   setPostCategories(id, fields.categories || []);
   return getPostAdmin(id);
 }
@@ -76,7 +76,7 @@ export function updatePost(id, fields) {
                      size = @size, pinned = @pinned, published = @published,
                      published_at = @published_at, updated_at = datetime('now')
     WHERE id = @id
-  `).run({ ...fields, slug, id });
+  `).run({ ...fields, slug, id, size: fields.size ?? current.size });
 
   if (fields.categories) setPostCategories(id, fields.categories);
   return getPostAdmin(id);

@@ -109,8 +109,17 @@
     return el('label', { class: 'check' }, [box, el('span', { text: label })]);
   }
 
-  const val = (form, name) => form.querySelector(`[name="${name}"]`).value;
-  const checked = (form, name) => form.querySelector(`[name="${name}"]`).checked;
+  /* die beiden werfen absichtlich einen lesbaren fehler, wenn das feld nicht
+     da ist. vorher gab es an dieser stelle "cannot read properties of null" —
+     das sagt nicht, welches feld fehlt, und genau das hat beim entfernen der
+     groessenauswahl aus dem post-editor eine ganze weile gekostet. */
+  function pick(form, name) {
+    const node = form.querySelector(`[name="${name}"]`);
+    if (!node) throw new Error(`the form has no field "${name}" — someone removed it`);
+    return node;
+  }
+  const val = (form, name) => pick(form, name).value;
+  const checked = (form, name) => pick(form, name).checked;
 
   function confirmed(question) {
     return window.confirm(question);
@@ -237,7 +246,6 @@
         slug: val(form, 'slug'),
         summary: val(form, 'summary'),
         body: val(form, 'body'),
-        size: val(form, 'size'),
         publishedAt: val(form, 'publishedAt'),
         published: checked(form, 'published'),
         pinned: checked(form, 'pinned'),

@@ -44,7 +44,10 @@ function postFields(body) {
     slug: body.slug === undefined ? undefined : str(body.slug, 'slug', { max: 80 }),
     summary: str(body.summary, 'kurztext', { max: 500 }),
     body: str(body.body, 'text', { max: 20000 }),
-    size: oneOf(str(body.size || 'small', 'größe'), 'größe', POST_SIZES),
+    // die groesse gehoert seit dem umbau zur anordnung und wird vom editor
+    // nicht mehr geschickt. undefined heisst: beim anlegen der standard,
+    // beim aendern der bisherige wert — nicht stillschweigend ueberschreiben.
+    size: body.size === undefined ? undefined : oneOf(str(body.size, 'größe'), 'größe', POST_SIZES),
     pinned: bool(body.pinned),
     published: bool(body.published),
     published_at: dateTime(body.publishedAt || new Date().toISOString().slice(0, 10), 'datum'),
