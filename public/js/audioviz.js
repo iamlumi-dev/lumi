@@ -1,184 +1,160 @@
 /*=== AUDIO-DARSTELLUNG ===*/
-/* zwei dinge, die sich die farbskala teilen:
-   - das spektrogramm in der kachel, aus vorberechneten daten
-   - der lebende visualizer auf der detailseite, aus der web-audio-analyse
-
-   die farben kommen aus den custom properties der seite, nicht aus einer
-   eigenen skala. der style guide kennt fuenf farben, und ein spektrum in
-   regenbogenfarben waere die erste ausnahme davon.                        */
+/* die wellenform einer audiodatei, gezeichnet aus vorberechneten daten.
+   sie erscheint zweimal: als kachel im portfolio und als abspielbalken auf
+   der detailseite.                                                        */
 window.__viz = (function () {
-  /* ---- farbskala ---------------------------------------------------------- */
-
-  function readColor(name) {
-    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    const hex = value.replace('#', '');
-    const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
-    return [
-      parseInt(full.slice(0, 2), 16),
-      parseInt(full.slice(2, 4), 16),
-      parseInt(full.slice(4, 6), 16),
-    ];
-  }
-
-  let ramp = null;
-
-  /** 256 farben von dunkel nach hell, entlang der palette der seite */
-  function palette() {
-    if (ramp) return ramp;
-
-    const stops = ['--bgclr', '--altbgclr', '--acntclr', '--titleclr', '--txtclr'].map(readColor);
-    ramp = new Uint8ClampedArray(256 * 4);
-
-    for (let i = 0; i < 256; i++) {
-      const t = (i / 255) * (stops.length - 1);
-      const a = Math.floor(t);
-      const b = Math.min(stops.length - 1, a + 1);
-      const f = t - a;
-      for (let c = 0; c < 3; c++) {
-        ramp[i * 4 + c] = stops[a][c] + (stops[b][c] - stops[a][c]) * f;
-      }
-      ramp[i * 4 + 3] = 255;
-    }
-    return ramp;
-  }
-
-  /* ---- spektrogramm fuer die kachel ---------------------------------------- */
+  /* ---- wellenform ----------------------------------------------------------
+     wie man sie von soundcloud kennt: balken, an der mittellinie
+     gespiegelt. dieselben daten tragen die kachel im portfolio und den
+     abspielbalken auf der detailseite. die farben kommen ueber custom
+     properties herein, damit beide stellen dieselbe routine benutzen.   */
 
   /**
-   * zeichnet das vorberechnete spektrogramm.
-   * zeit laeuft nach rechts, tiefe frequenzen liegen unten.
+   * @param {HTMLCanvasElement} canvas
+   * @param {{buckets:number, bytes:Uint8Array}} wave
+   * @param {{progress?:number, hover?:number}} [state]
+   *   anteile von 0 bis 1. was abgespielt ist, steht heller da; die stelle
+   *   unter dem zeiger bekommt eine linie.
    */
-  function drawSpectrogram(canvas, spec) {
-    const { slices, bands } = spec;
-    const bytes = spec.bytes;
-    const colors = palette();
-
-    // erst in voller datenaufloesung zeichnen, dann skaliert uebertragen.
-    // das ist schneller als tausende einzelne rechtecke.
-    const src = document.createElement('canvas');
-    src.width = slices;
-    src.height = bands;
-    const sctx = src.getContext('2d');
-    const img = sctx.createImageData(slices, bands);
-
-    for (let s = 0; s < slices; s++) {
-      for (let band = 0; band < bands; band++) {
-        const v = bytes[s * bands + band];
-        // zeile 0 oben, aber band 0 ist die tiefste frequenz → spiegeln
-        const px = ((bands - 1 - band) * slices + s) * 4;
-        img.data[px] = colors[v * 4];
-        img.data[px + 1] = colors[v * 4 + 1];
-        img.data[px + 2] = colors[v * 4 + 2];
-        img.data[px + 3] = 255;
-      }
-    }
-    sctx.putImageData(img, 0, 0);
-
+  function drawWaveform(canvas, wave, state = {}) {
     const ctx = canvas.getContext('2d');
-    // kantig statt weichgezeichnet — passt zur terminal-anmutung
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+    const w = canvas.width;
+    const h = canvas.height;
+    const mid = h / 2;
+    const bytes = wave.bytes;
+
+    const style = getComputedStyle(canvas);
+    const played = style.getPropertyValue('--wave-played').trim() || '#B5E19E';
+    const rest = style.getPropertyValue('--wave-rest').trim() || '#36611E';
+    const head = style.getPropertyValue('--wave-head').trim() || '#cce3c3';
+
+    ctx.clearRect(0, 0, w, h);
+
+    // balkenbreite so waehlen, dass immer eine luecke bleibt
+    const step = Math.max(2, Math.round(w / 180));
+    const bar = Math.max(1, step - 1);
+    const count = Math.floor(w / step);
+    const upto = (state.progress ?? 0) * count;
+
+    for (let i = 0; i < count; i++) {
+      // mehrere datenpunkte je balken zusammenfassen
+      const from = Math.floor((i / count) * wave.buckets);
+      const to = Math.max(from + 1, Math.floor(((i + 1) / count) * wave.buckets));
+      let peak = 0;
+      for (let k = from; k < to; k++) if (bytes[k] > peak) peak = bytes[k];
+
+      // nie ganz null: eine stille stelle bleibt als linie sichtbar
+      const amp = Math.max(1.5, (peak / 255) * (mid - 2));
+      ctx.fillStyle = i < upto ? played : rest;
+      ctx.fillRect(i * step, mid - amp, bar, amp * 2);
+    }
+
+    if (state.hover !== undefined && state.hover !== null) {
+      ctx.fillStyle = head;
+      ctx.fillRect(Math.round(state.hover * w), 0, 1.5, h);
+    }
   }
 
-  /* ---- lebender visualizer ------------------------------------------------- */
+  /* ---- partikel ------------------------------------------------------------
+     ein feld aus punkten, das auf die musik reagiert. bewusst dieselbe
+     sprache wie der hintergrund der seite: dort steht ein punktraster im
+     wind, hier wird eines von der musik geschoben.
 
-  /* ferrofluid: eine dunkle masse, aus der spitzen herauswachsen. jede
-     spitze haengt an einem frequenzband. das aussehen kommt daher, dass die
-     spitzen spitz sind und die taeler dazwischen rund bleiben — deshalb pro
-     spitze drei stuetzpunkte statt einer glatten kurve durch alle werte. */
+     jeder punkt hat einen ruheplatz und ein frequenzband. die energie in
+     seinem band druckt ihn nach aussen und laesst ihn heller werden; eine
+     feder zieht ihn zurueck. ein bass-anschlag stoesst das ganze feld kurz
+     auseinander.                                                          */
 
-  function ferrofluid(canvas) {
+  function particles(canvas, count = 260) {
     const ctx = canvas.getContext('2d');
-    const SPIKES = 48;
-    const HALF = SPIKES / 2;
-    const smooth = new Float32Array(SPIKES);
-    let breathe = 0;
+    const dots = [];
+    let bassAvg = 0;
+    let pulse = 0;
+    let seeded = 0;
+
+    function seed(w, h) {
+      dots.length = 0;
+      const unit = Math.min(w, h);
+      for (let i = 0; i < count; i++) {
+        // gleichmaessig auf einer scheibe verteilen, nicht in der mitte
+        // gehaeuft — deshalb die wurzel
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * unit * 0.46;
+        dots.push({
+          hx: w / 2 + Math.cos(a) * r,     // ruheplatz
+          hy: h / 2 + Math.sin(a) * r,
+          x: w / 2 + Math.cos(a) * r,
+          y: h / 2 + Math.sin(a) * r,
+          vx: 0,
+          vy: 0,
+          // band aus dem abstand zur mitte: tiefe toene innen, hohe aussen
+          band: Math.min(0.98, r / (unit * 0.46)),
+          size: 0.8 + Math.random() * 1.6,
+          drift: Math.random() * Math.PI * 2,
+        });
+      }
+      seeded = w * 31 + h;
+    }
 
     function draw(freq, level) {
       const w = canvas.width;
       const h = canvas.height;
+      if (seeded !== w * 31 + h) seed(w, h);
+
       const cx = w / 2;
       const cy = h / 2;
       const unit = Math.min(w, h);
-      const base = unit * 0.16;
-      const reach = unit * 0.28;
 
-      breathe += 0.02;
+      // bass getrennt beobachten: ein anschlag ist ein sprung darin
+      let bass = 0;
+      const bassBins = Math.max(1, Math.floor(freq.length * 0.06));
+      for (let i = 0; i < bassBins; i++) bass += freq[i];
+      bass = bass / bassBins / 255;
+      if (bass > bassAvg * 1.25 + 0.06) pulse = Math.min(1, pulse + 0.55);
+      bassAvg += (bass - bassAvg) * 0.12;
+      pulse *= 0.90;
+
       ctx.clearRect(0, 0, w, h);
 
-      /* die frequenzen liegen gespiegelt auf dem kreis: oben die tiefen,
-         unten die hohen, links wie rechts gleich. eine einseitige verteilung
-         sieht aus wie ein defekt, keine wie ferrofluid. */
-      for (let i = 0; i < SPIKES; i++) {
-        const mirrored = i < HALF ? i : SPIKES - i;
-        const t = mirrored / HALF;
+      for (const d of dots) {
+        // energie im band dieses punktes, nur bis 65% der baender —
+        // darueber ist bei mp3 nichts mehr
+        const bin = Math.floor((freq.length - 1) * 0.65 * (d.band ** 1.6));
+        const energy = (freq[bin] || 0) / 255;
 
-        /* logarithmisch greifen, sonst passiert alles im untersten viertel.
-           und nur bis etwa 65% der baender: darueber liegt bei mp3 der
-           tiefpass, die bins sind dort schlicht leer — ohne die grenze
-           faellt die figur genau dort in sich zusammen. */
-        const bin = Math.floor((freq.length - 1) * 0.65 * (t ** 1.7));
-        let v = (freq[bin] || 0) / 255;
+        // nach aussen druecken: eigenes band plus der gemeinsame stoss
+        const dx = d.x - cx;
+        const dy = d.y - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const push = (energy * 0.9 + pulse * 1.4) * unit * 0.0016;
+        d.vx += (dx / dist) * push;
+        d.vy += (dy / dist) * push;
 
-        // hoehen anheben: in musik tragen sie viel weniger energie, ohne
-        // das bleibt die halbe figur flach
-        v *= 0.6 + 2.1 * t;
+        // feder zurueck zum ruheplatz, plus reibung
+        d.vx += (d.hx - d.x) * 0.012;
+        d.vy += (d.hy - d.y) * 0.012;
+        d.vx *= 0.90;
+        d.vy *= 0.90;
 
-        // die masse faellt nie ganz zusammen
-        v = Math.max(v, 0.07);
+        // leichtes eigenleben, damit es auch bei stille nicht erstarrt
+        d.drift += 0.01;
+        d.x += d.vx + Math.cos(d.drift) * 0.12;
+        d.y += d.vy + Math.sin(d.drift * 0.8) * 0.12;
 
-        // im ruhezustand leicht atmen, damit nicht nur ein kreis dasteht
-        if (level < 0.01) v = 0.05 + 0.04 * Math.sin(breathe + i * 0.4);
+        const bright = Math.min(1, 0.18 + energy * 0.9 + pulse * 0.4);
+        const size = d.size * (1 + energy * 1.1 + pulse * 0.5);
 
-        smooth[i] += (Math.min(1, v) - smooth[i]) * 0.3;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(168, 179, 135, ${bright})`;
+        ctx.fill();
       }
 
-      const point = (i, r) => {
-        const a = (i / SPIKES) * Math.PI * 2 - Math.PI / 2;
-        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-      };
-
-      /* das taleben zwischen zwei spitzen richtet sich nach der KLEINEREN
-         der beiden nachbarn. dadurch verschmelzen laute nachbarn zu einer
-         masse mit spitzen obendrauf, statt einzelne nadeln zu bleiben —
-         genau das macht den ferrofluid-eindruck aus. */
-      const valley = (i) => {
-        const a = smooth[(i + SPIKES) % SPIKES];
-        const b = smooth[(i + 1) % SPIKES];
-        return base + reach * Math.min(a, b) * 1.15;
-      };
-      const tip = (i) => base + reach * (smooth[i] ** 1.25) * 2.1;
-
+      // ein ruhiger kreis in der mitte, der mit der lautstaerke atmet
       ctx.beginPath();
-      for (let i = 0; i < SPIKES; i++) {
-        const [sx, sy] = point(i - 0.5, valley(i - 1));
-        const [tx, ty] = point(i, tip(i));
-        const [ex, ey] = point(i + 0.5, valley(i));
-
-        if (i === 0) ctx.moveTo(sx, sy);
-        else ctx.lineTo(sx, sy);
-        ctx.quadraticCurveTo(tx, ty, ex, ey);
-      }
-      ctx.closePath();
-
-      const fill = ctx.createRadialGradient(cx, cy, base * 0.3, cx, cy, base + reach * 2);
-      fill.addColorStop(0, `rgba(108, 194, 61, ${0.4 + level * 0.35})`);
-      fill.addColorStop(0.5, 'rgba(54, 97, 30, 0.6)');
-      fill.addColorStop(1, 'rgba(54, 97, 30, 0.05)');
-      ctx.fillStyle = fill;
-      ctx.fill();
-
-      ctx.strokeStyle = `rgba(181, 225, 158, ${0.45 + level * 0.5})`;
+      ctx.arc(cx, cy, unit * (0.05 + level * 0.05 + pulse * 0.02), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(108, 194, 61, ${0.25 + level * 0.5})`;
       ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // ruhender kern: die masse, aus der die spitzen kommen
-      ctx.beginPath();
-      ctx.arc(cx, cy, base * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(11, 19, 6, 0.9)';
-      ctx.fill();
-      ctx.strokeStyle = `rgba(108, 194, 61, ${0.5 + level * 0.5})`;
       ctx.stroke();
     }
 
@@ -201,15 +177,15 @@ window.__viz = (function () {
     return false;
   }
 
-  /** spektrumdatei laden und die base64-daten auspacken */
-  async function loadSpectrum(src) {
+  /** wellenform laden und die base64-daten auspacken */
+  async function loadWaveform(src) {
     const res = await fetch(src);
-    if (!res.ok) throw new Error('spektrum nicht ladbar');
-    const spec = await res.json();
-    const raw = atob(spec.data);
+    if (!res.ok) throw new Error('wellenform nicht ladbar');
+    const wave = await res.json();
+    const raw = atob(wave.peaks);
     const bytes = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    return { ...spec, bytes };
+    return { ...wave, bytes };
   }
 
   const formatTime = (secs) => {
@@ -219,5 +195,5 @@ window.__viz = (function () {
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  return { palette, drawSpectrogram, ferrofluid, fit, loadSpectrum, formatTime };
+  return { drawWaveform, particles, fit, loadWaveform, formatTime };
 })();

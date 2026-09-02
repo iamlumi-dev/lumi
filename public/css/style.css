@@ -474,9 +474,13 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
     border: 1.5px solid var(--altbgclr);
 }
 
-/*--- audio: visualizer und bedienung ---*/
+/*--- audio: visualizer, abspielbalken, bedienung ---*/
 .audio {
     border: 1.5px solid var(--altbgclr);
+    /* farben fuer die zeichenroutine in audioviz.js */
+    --wave-rest: #36611E;
+    --wave-played: #B5E19E;
+    --wave-head: #cce3c3;
 }
 
 /* die flaeche, auf der gezogen wird. touch-action: none, sonst scrollt das
@@ -507,21 +511,28 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
     transition: opacity 0.3s ease-in-out;
 }
 
-.audio-hint {
-    bottom: 0.5rem;
-    opacity: 0.35;
-}
-
-.audio-volume {
-    top: 0.5rem;
-    color: var(--titleclr);
-    opacity: 0;
-}
+.audio-hint { bottom: 0.5rem; opacity: 0.35; }
+.audio-volume { top: 0.5rem; color: var(--titleclr); opacity: 0; }
 
 .audio-stage:hover .audio-hint { opacity: 0.6; }
 .audio-stage.adjusting .audio-hint { opacity: 0; }
 .audio-stage.adjusting .audio-volume { opacity: 1; }
 .audio-stage:focus-visible { outline: 1.5px solid var(--acntclr); outline-offset: -2px; }
+
+/* abspielbalken: dieselbe wellenform wie in der kachel */
+.audio-wave {
+    height: 3.5rem;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    border-top: 1.5px solid var(--altbgclr);
+}
+
+.audio-wave.wave-failed { display: none; }
+.audio-wave:focus-visible { outline: 1.5px solid var(--acntclr); outline-offset: -2px; }
+.audio-wave .wave-canvas { width: 100%; height: 100%; display: block; }
 
 .audio-line {
     display: flex;
@@ -532,48 +543,13 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
 }
 
 .audio audio { display: none; }
-
 .audio-toggle { flex: 0 0 auto; }
 
 .audio-time {
     font-size: 0.85rem;
     opacity: 0.55;
-    flex: 0 0 auto;
+    margin-left: auto;
     font-variant-numeric: tabular-nums;
-}
-
-/* schieberegler: eine duenne linie und ein kleines quadrat, sonst nichts */
-.audio-seek {
-    flex: 1 1 auto;
-    min-width: 0;
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    height: 14px;
-    margin: 0;
-    cursor: pointer;
-}
-
-.audio-seek::-webkit-slider-runnable-track { height: 1.5px; background: var(--altbgclr); }
-.audio-seek::-moz-range-track { height: 1.5px; background: var(--altbgclr); }
-.audio-seek::-moz-range-progress { height: 1.5px; background: var(--acntclr); }
-
-.audio-seek::-webkit-slider-thumb {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 9px;
-    height: 9px;
-    margin-top: -3.75px;
-    background: var(--acntclr);
-    border: none;
-    border-radius: 0;
-}
-.audio-seek::-moz-range-thumb {
-    width: 9px;
-    height: 9px;
-    background: var(--acntclr);
-    border: none;
-    border-radius: 0;
 }
 
 /*--- zurueck zum portfolio ---*/
@@ -1223,32 +1199,31 @@ body.textpage #selections {
 
 .term-link:hover { color: var(--acntclr); font-style: normal; }
 
-/*=== SPEKTROGRAMM IN DER KACHEL ===*/
-/* das gruene tint-overlay der medienflaeche gilt hier nicht: das
-   spektrogramm ist schon in den farben der seite gezeichnet. */
-.tile-spectrum::after { display: none; }
+/*=== WELLENFORM IN DER KACHEL ===*/
+/* das gruene tint-overlay der medienflaeche gilt hier nicht: die wellenform
+   ist schon in den farben der seite gezeichnet. */
+.tile-wave::after { display: none; }
 
-.spectrum-canvas {
+.tile-wave {
+    display: flex;
+    align-items: center;
+    padding: 0 0.8rem;
+    /* farben fuer die zeichenroutine in audioviz.js */
+    --wave-rest: #36611E;
+    --wave-played: #6CC23D;
+    --wave-head: #cce3c3;
+}
+
+.wave-canvas {
     width: 100%;
-    height: 100%;
+    height: 60%;
     display: block;
-    image-rendering: pixelated;
+    transition: opacity 0.3s ease-in-out;
 }
 
-/* abspielpunkt beim ueberfahren */
-.spectrum-head {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1.5px;
-    background-color: var(--txtclr);
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    pointer-events: none;
-    z-index: 2;
-}
+.tile:hover .wave-canvas { opacity: 1; }
 
-.spectrum-time {
+.wave-time {
     position: absolute;
     top: 0.4rem;
     right: 0.5rem;
@@ -1262,5 +1237,27 @@ body.textpage #selections {
     z-index: 2;
 }
 
-.tile-spectrum.seeking .spectrum-head,
-.tile-spectrum.seeking .spectrum-time { opacity: 1; }
+.tile-wave.seeking .wave-time { opacity: 1; }
+
+/*=== TERMINAL — spielereien ===*/
+.term-rain,
+.term-plant {
+    margin: 0.3rem 0;
+    font-family: "Xanh Mono", monospace;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    color: var(--acntclr);
+    opacity: 0.85;
+    white-space: pre;
+}
+
+.term-rain { opacity: 0.7; }
+
+/* anklickbarer suchtreffer */
+.term-link {
+    color: var(--txtclr);
+    transition: color 0.3s ease-in-out;
+}
+
+.term-link:hover { color: var(--acntclr); font-style: normal; }
+

@@ -25,21 +25,21 @@
      audio
      =====================================================================
      eigener player, weil die nativen controls hellgrau-weiss sind und die
-     palette sprengen wuerden. dazu ein lebender visualizer nach dem vorbild
-     von ferrofluid-displays: eine dunkle masse, aus der spitzen wachsen.
+     palette sprengen wuerden. dazu ein partikelfeld, das auf die musik
+     reagiert, und die wellenform als abspielbalken.
 
      die lautstaerke wird durch ziehen auf dem visualizer geregelt — hoch
      lauter, runter leiser. auf dem handy ist das deutlich angenehmer als
      ein schmaler regler.                                                  */
 
-  function audioPlayer(src, startAt = null) {
+  function audioPlayer(src, startAt = null, waveSrc = null) {
     const audio = el('audio');
     audio.src = src;
     audio.preload = 'metadata';
 
     const box = el('div', 'audio');
 
-    /* ---- visualizer ---- */
+    /* ---- visualizer: partikelfeld ---- */
     const canvas = el('canvas', 'audio-viz');
     canvas.setAttribute('aria-hidden', 'true');
     const hint = el('div', 'audio-hint', 'drag up or down for volume');
@@ -53,19 +53,77 @@
     toggle.type = 'button';
     toggle.setAttribute('aria-label', 'play');
 
-    const seek = el('input');
-    seek.type = 'range';
-    seek.className = 'audio-seek';
-    seek.min = 0; seek.max = 100; seek.step = 0.1; seek.value = 0;
-    seek.setAttribute('aria-label', 'position');
+    /* ---- abspielbalken: dieselbe wellenform wie in der kachel ----
+       ein klick oder ziehen darauf springt an die stelle. der abgespielte
+       teil steht heller da. */
+    const waveBox = el('div', 'audio-wave');
+    const waveCanvas = el('canvas', 'wave-canvas');
+    waveBox.appendChild(waveCanvas);
+    waveBox.setAttribute('role', 'slider');
+    waveBox.setAttribute('aria-label', 'position');
+    waveBox.tabIndex = 0;
+
+    let wave = null;
+    let waveHover = null;
+
+    const paintWave = () => {
+      if (!wave) return;
+      window.__viz.fit(waveCanvas);
+      window.__viz.drawWaveform(waveCanvas, wave, {
+        progress: audio.duration ? audio.currentTime / audio.duration : 0,
+        hover: waveHover,
+      });
+    };
+
+    if (waveSrc) {
+      window.__viz.loadWaveform(waveSrc)
+        .then((loaded) => { wave = loaded; paintWave(); })
+        .catch(() => waveBox.classList.add('wave-failed'));
+      new ResizeObserver(paintWave).observe(waveBox);
+    } else {
+      waveBox.classList.add('wave-failed');
+    }
+
+    const seekTo = (clientX) => {
+      const rect = waveBox.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      if (audio.duration) audio.currentTime = ratio * audio.duration;
+      paintWave();
+    };
+
+    let scrubbing = false;
+    waveBox.addEventListener('pointerdown', (e) => {
+      scrubbing = true;
+      waveBox.setPointerCapture(e.pointerId);
+      seekTo(e.clientX);
+    });
+    waveBox.addEventListener('pointermove', (e) => {
+      const rect = waveBox.getBoundingClientRect();
+      waveHover = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      if (scrubbing) seekTo(e.clientX);
+      else paintWave();
+    });
+    const stopScrub = (e) => {
+      scrubbing = false;
+      waveBox.releasePointerCapture?.(e.pointerId);
+    };
+    waveBox.addEventListener('pointerup', stopScrub);
+    waveBox.addEventListener('pointercancel', stopScrub);
+    waveBox.addEventListener('pointerleave', () => { waveHover = null; paintWave(); });
+
+    waveBox.addEventListener('keydown', (e) => {
+      if (!audio.duration) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); audio.currentTime += 5; }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); audio.currentTime -= 5; }
+    });
 
     const time = el('span', 'audio-time', '0:00 / –:––');
 
     // el() nimmt hier (tag, klasse, text) — keine kinder. die muessen
     // ausdruecklich angehaengt werden.
     const line = el('div', 'audio-line');
-    line.append(toggle, seek, time);
-    box.append(line, audio);
+    line.append(toggle, time);
+    box.append(waveBox, line, audio);
 
     /* ---- web audio, erst beim ersten abspielen ----
        ein AudioContext darf ohne zutun des nutzers nicht laufen, und ein
@@ -108,8 +166,8 @@
     setVolume(volume);
 
     /* ---- zeichnen ---- */
-    const viz = window.__viz.ferrofluid(canvas);
-    const idle = new Uint8Array(64);
+    const viz = window.__viz.particles(canvas);
+    const idle = new Uint8Array(128);
     let raf = null;
 
     function frame() {
@@ -196,13 +254,14 @@
       toggle.textContent = 'play';
       toggle.setAttribute('aria-label', 'play');
     });
-    audio.addEventListener('ended', () => { seek.value = 0; sync(); });
+    audio.addEventListener('ended', () => { paintWave(); sync(); });
     audio.addEventListener('loadedmetadata', () => {
       sync();
+      paintWave();
       // sprungziel aus dem grid: ?t=… an der kachel angeklickt
       if (startAt !== null && isFinite(audio.duration)) {
         audio.currentTime = Math.min(startAt, audio.duration - 0.1);
-        seek.value = (audio.currentTime / audio.duration) * 100;
+        paintWave();
         sync();
         // versuchen loszuspielen. blockt der browser das (kein zutun des
         // nutzers auf DIESER seite), bleibt es stehen — die stelle stimmt
@@ -211,13 +270,7 @@
         audio.play().then(startDrawing).catch(() => {});
       }
     });
-    audio.addEventListener('timeupdate', () => {
-      if (audio.duration) seek.value = (audio.currentTime / audio.duration) * 100;
-      sync();
-    });
-    seek.addEventListener('input', () => {
-      if (audio.duration) audio.currentTime = (seek.value / 100) * audio.duration;
-    });
+    audio.addEventListener('timeupdate', () => { paintWave(); sync(); });
 
     // einmal zeichnen, damit auch vor dem ersten abspielen etwas dasteht
     requestAnimationFrame(() => { window.__viz.fit(canvas); viz.draw(idle, 0); });
@@ -244,7 +297,7 @@
       fig.appendChild(v);
     } else if (m.kind === 'audio') {
       const t = Number(new URLSearchParams(location.search).get('t'));
-      fig.appendChild(audioPlayer(m.src, isFinite(t) && t > 0 ? t : null));
+      fig.appendChild(audioPlayer(m.src, isFinite(t) && t > 0 ? t : null, m.waveform || null));
     } else if (m.kind === 'youtube') {
       fig.appendChild(youtubeEmbed(m));
     }

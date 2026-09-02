@@ -112,7 +112,7 @@ server/
   lib/shoutouts.js Empfehlungen
   lib/layout.js   Anordnung des Portfolios: Zeilen, Spalten, Plätze
   lib/poster.js   Standbilder für Videos, kleine Fassungen für Bilder
-  lib/spectrum.js FFT und Spektrogramm einer Audiodatei
+  lib/waveform.js Hüllkurve einer Audiodatei
   lib/write.js    alle schreibenden Zugriffe
   lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
@@ -135,7 +135,7 @@ public/
   js/shoutouts.js     Empfehlungsliste
   js/page.js          generische Textseite (friends, colophon, …)
   js/term-toys.js     die Spielereien des Terminals
-  js/audioviz.js      Spektrogramm und Ferrofluid-Visualizer
+  js/audioviz.js      Wellenform und Partikel-Visualizer
   js/splash.js        Splash-Text würfeln
   js/terminal.js      das Terminal auf der Startseite
   js/login.js         Anmeldeformular
@@ -258,41 +258,33 @@ schwerer.
 
 ### Audio
 
-**In der Übersicht** steht ein Spektrogramm des ganzen Stücks, gezeichnet in
-den fünf Farben der Seite statt in den üblichen Regenbogenfarben. Es wird beim
-Upload einmal berechnet (`server/lib/spectrum.js`) und als ~11 kB neben der
-Datei abgelegt — die Kachel lädt also nicht die Audiodatei.
+**In der Übersicht** steht die Wellenform des Stücks, wie man sie von
+SoundCloud kennt: Balken, an der Mittellinie gespiegelt. Sie wird beim Upload
+einmal berechnet (`server/lib/waveform.js`) und als **1 kB** neben der Datei
+abgelegt — aus 4 MB Audio. Die Kachel lädt die Audiodatei also nie.
 
-Gerechnet wird selbst, nicht mit ffmpegs `showspectrumpic`: das liefert ein
-fertiges Bild in einer seiner eigenen Farbskalen. Gebraucht werden aber Zahlen
-— für die Farbgebung **und** dafür, dass eine Stelle im Bild eine Stelle im
-Stück ist. Beim Überfahren zeigt eine Linie die Position, und der Link der
-Kachel bekommt sie als `?t=` angehängt: ein Klick öffnet die Detailseite genau
-dort.
+Je Balken werden Spitzenwert und Effektivwert gemischt: der Spitzenwert allein
+macht bei gemasterter Musik einen gleichmäßigen Block, der Effektivwert allein
+sieht schlapp aus. Skaliert wird auf den lautesten Punkt der jeweiligen Datei,
+damit leise Aufnahmen keine flache Linie sind.
 
-Die FFT ist gegen bekannte Signale geprüft — ein reiner Sinus landet exakt im
-richtigen Bin mit 99,9 % der Energie. Zwei Dinge waren beim Bauen nötig und
-fielen erst durchs Ansehen auf, nicht durch eine Messung:
+Beim Überfahren zeigt eine Linie die Stelle, und der Link der Kachel bekommt
+sie als `?t=` angehängt: ein Klick öffnet die Detailseite genau dort. Der Link
+wird dabei nur umgeschrieben, nicht abgefangen — Mittelklick und Tastatur
+funktionieren weiter.
 
-- Ohne Normierung auf die Fenstergröße liegt alles weit über 0 dB und das Bild
-  ist eine gesättigte Fläche.
-- Mit nur **einem** Fenster je Zeitschritt ist jeder Schritt eine
-  46-ms-Momentaufnahme aus vielleicht einer Sekunde. Benachbarte Schritte sind
-  dann unkorreliert und das Ergebnis sieht aus wie Rauschen. Es wird deshalb
-  über sechs Fenster je Schritt gemittelt.
+**Auf der Detailseite** trägt dieselbe Wellenform den Abspielbalken: der
+abgespielte Teil steht heller da, ein Klick oder Ziehen springt an die Stelle.
+Darüber läuft ein **Partikelfeld**, gespeist aus einem `AnalyserNode`.
 
-Die Skala wird pro Datei auf das 5. bis 98. Perzentil gestreckt: eine feste
-dB-Skala macht leise Aufnahmen schwarz und laute zu einer hellen Fläche.
+Das Feld spricht bewusst dieselbe Sprache wie der Hintergrund der Seite: dort
+steht ein Punktraster im Wind, hier wird eines von der Musik geschoben. Jeder
+Punkt hat einen Ruheplatz und ein Frequenzband — die Energie in seinem Band
+drückt ihn nach außen und lässt ihn heller werden, eine Feder zieht ihn zurück.
+Ein Bass-Anschlag (ein Sprung im gleitenden Mittel der untersten Bänder) stößt
+das ganze Feld kurz auseinander.
 
-**Auf der Detailseite** läuft ein lebender Visualizer nach dem Vorbild von
-Ferrofluid-Displays — eine Masse, aus der Spitzen wachsen, gespeist aus einem
-`AnalyserNode`. Das Talniveau zwischen zwei Spitzen richtet sich nach der
-kleineren der beiden Nachbarn; dadurch verschmelzen laute Nachbarn zu einer
-Masse mit Spitzen obendrauf statt einzelne Nadeln zu bleiben. Gespiegelt, und
-nur bis 65 % der Bänder — darüber liegt bei mp3 der Tiefpass, die Bins sind
-leer, und die Figur fiel genau dort in sich zusammen.
-
-**Die Lautstärke** wird durch Ziehen auf dem Visualizer geregelt, hoch lauter,
+**Die Lautstärke** wird durch Ziehen auf dem Partikelfeld geregelt, hoch lauter,
 runter leiser — auf dem Handy deutlich angenehmer als ein schmaler Regler.
 `touch-action: none` sorgt dafür, dass dabei nicht die Seite scrollt. Ein Klick
 ohne Ziehen spielt ab oder hält an, Pfeiltasten regeln ebenfalls.

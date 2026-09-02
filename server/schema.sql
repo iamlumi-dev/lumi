@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS media (
                                                  -- oder bei youtube die video-id
   poster   TEXT,                                 -- standbild fuer video, erzeugt
   thumb    TEXT,                                 -- kleine fassung fuers raster, erzeugt
-  spectrum TEXT,                                 -- spektrogramm-daten fuer audio, erzeugt
+  waveform TEXT,                                 -- huellkurve fuer audio, erzeugt
   alt      TEXT    NOT NULL DEFAULT '',          -- barrierefreiheit / bildunterschrift
   caption  TEXT    NOT NULL DEFAULT '',
   is_cover INTEGER NOT NULL DEFAULT 0 CHECK (is_cover IN (0,1)), -- zeigt die kachel

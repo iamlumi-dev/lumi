@@ -8,7 +8,7 @@ import path from 'node:path';
 import { db } from '../server/db.js';
 import { config } from '../server/config.js';
 import { makePoster, makeThumb, ffmpegAvailable } from '../server/lib/poster.js';
-import { makeSpectrum } from '../server/lib/spectrum.js';
+import { makeWaveform } from '../server/lib/waveform.js';
 import { backupDatabase } from './backup.js';
 
 if (!(await ffmpegAvailable())) {
@@ -17,7 +17,7 @@ if (!(await ffmpegAvailable())) {
 }
 
 const rows = db.prepare(`
-  SELECT m.id, m.kind, m.src, m.poster, m.thumb, m.spectrum, p.title
+  SELECT m.id, m.kind, m.src, m.poster, m.thumb, m.waveform, p.title
   FROM media m JOIN posts p ON p.id = m.post_id
   WHERE m.kind IN ('video', 'image', 'audio')
   ORDER BY m.id
@@ -27,7 +27,7 @@ const exists = (rel) =>
   !!rel && fs.existsSync(path.resolve(config.uploadsDir, rel.replace(/^\/uploads\//, '')));
 
 // video braucht ein standbild, bild eine kleine fassung, audio ein spektrum
-const NEEDS = { video: 'poster', image: 'thumb', audio: 'spectrum' };
+const NEEDS = { video: 'poster', image: 'thumb', audio: 'waveform' };
 const todo = rows.filter((r) => !exists(r[NEEDS[r.kind]]));
 
 console.log(`${rows.length} medien, davon ${todo.length} ohne abgeleitete fassung.`);
@@ -39,10 +39,10 @@ await backupDatabase('vor-media-prepare');
 const setters = {
   video: db.prepare('UPDATE media SET poster = ? WHERE id = ?'),
   image: db.prepare('UPDATE media SET thumb = ? WHERE id = ?'),
-  audio: db.prepare('UPDATE media SET spectrum = ? WHERE id = ?'),
+  audio: db.prepare('UPDATE media SET waveform = ? WHERE id = ?'),
 };
-const MAKERS = { video: makePoster, image: makeThumb, audio: makeSpectrum };
-const LABELS = { video: 'standbild', image: 'kleine fassung', audio: 'spektrum' };
+const MAKERS = { video: makePoster, image: makeThumb, audio: makeWaveform };
+const LABELS = { video: 'standbild', image: 'kleine fassung', audio: 'wellenform' };
 const kb = (rel) =>
   Math.round(fs.statSync(path.resolve(config.uploadsDir, rel.replace(/^\/uploads\//, ''))).size / 1024);
 

@@ -22,7 +22,7 @@ const ADDED_COLUMNS = [
   ['pages', 'position',  'INTEGER NOT NULL DEFAULT 0'],
   ['links', 'note',      "TEXT NOT NULL DEFAULT ''"],
   ['media', 'thumb',     'TEXT'],
-  ['media', 'spectrum',  'TEXT'],
+  ['media', 'waveform',  'TEXT'],
   // anordnung des portfolios
   ['posts', 'cell_id',   'INTEGER REFERENCES grid_cells(id) ON DELETE SET NULL'],
   ['posts', 'slot',      'INTEGER NOT NULL DEFAULT 0'],
@@ -139,6 +139,17 @@ for (const page of REQUIRED_PAGES) {
 // ueberschrieben.
 const once = db.prepare('SELECT 1 FROM meta WHERE key = ?');
 const remember = db.prepare('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)');
+
+// aus dem spektrogramm ist eine wellenform geworden. die alte spalte wird
+// entfernt — ihre daten passen nicht mehr, media:prepare erzeugt die neuen.
+// (das laeuft nach dem spaltennachtrag, waveform existiert hier also schon.)
+const mediaCols = tableExists('media')
+  ? db.prepare('PRAGMA table_info(media)').all().map((c) => c.name)
+  : [];
+if (mediaCols.includes('spectrum')) {
+  db.exec('ALTER TABLE media DROP COLUMN spectrum');
+  console.log('  ~ spalte media.spectrum entfernt (durch waveform ersetzt)');
+}
 
 if (!once.get('nav_positions')) {
   // reihenfolge wie bisher in den html-dateien

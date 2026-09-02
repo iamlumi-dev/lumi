@@ -148,65 +148,56 @@
     return box;
   }
 
-  /* spektrogramm einer audiodatei. beim ueberfahren zeigt eine linie, wo im
-     stueck man gerade ist; der link bekommt die stelle als ?t= angehaengt,
-     sodass ein klick die detailseite genau dort startet. der link wird dabei
-     nur umgeschrieben, nicht abgefangen — mittelklick und tastatur
-     funktionieren dadurch weiter. */
-  function spectrumNode(post, media, link) {
+  /* wellenform einer audiodatei, wie man sie von soundcloud kennt. beim
+     ueberfahren zeigt eine linie, wo im stueck man gerade ist; der link
+     bekommt die stelle als ?t= angehaengt, sodass ein klick die detailseite
+     genau dort startet. der link wird dabei nur umgeschrieben, nicht
+     abgefangen — mittelklick und tastatur funktionieren dadurch weiter. */
+  function waveNode(post, media, link) {
     const box = document.createElement('div');
-    box.className = 'tile-media tile-spectrum';
+    box.className = 'tile-media tile-wave';
 
     const canvas = document.createElement('canvas');
-    canvas.className = 'spectrum-canvas';
+    canvas.className = 'wave-canvas';
     box.appendChild(canvas);
 
-    const head = document.createElement('div');
-    head.className = 'spectrum-head';
-    box.appendChild(head);
-
     const time = document.createElement('span');
-    time.className = 'spectrum-time';
+    time.className = 'wave-time';
     box.appendChild(time);
 
     const base = `/portfolio/${post.slug}`;
-    let spec = null;
+    let wave = null;
+    let hover = null;
 
     const paint = () => {
-      if (!spec) return;
-      if (window.__viz.fit(canvas) || !canvas.dataset.painted) {
-        window.__viz.drawSpectrogram(canvas, spec);
-        canvas.dataset.painted = '1';
-      }
+      if (!wave) return;
+      window.__viz.fit(canvas);
+      window.__viz.drawWaveform(canvas, wave, { hover });
     };
 
-    window.__viz.loadSpectrum(media.spectrum).then((loaded) => {
-      spec = loaded;
-      canvas.dataset.painted = '';
-      paint();
-    }).catch(() => { box.classList.add('spectrum-failed'); });
+    window.__viz.loadWaveform(media.waveform)
+      .then((loaded) => { wave = loaded; paint(); })
+      .catch(() => { box.classList.add('wave-failed'); });
 
-    // beim ueberfahren die stelle anzeigen und in den link schreiben
     box.addEventListener('pointermove', (e) => {
-      if (!spec) return;
+      if (!wave) return;
       const rect = box.getBoundingClientRect();
-      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const at = ratio * spec.duration;
-      head.style.left = `${ratio * 100}%`;
+      hover = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const at = hover * wave.duration;
       box.classList.add('seeking');
       time.textContent = window.__viz.formatTime(at);
       link.href = `${base}?t=${at.toFixed(1)}`;
+      paint();
     });
 
     box.addEventListener('pointerleave', () => {
+      hover = null;
       box.classList.remove('seeking');
       link.href = base;
+      paint();
     });
 
-    // beim ersten anzeigen zeichnen, spaeter bei groessenaenderung neu
-    requestAnimationFrame(paint);
-    new ResizeObserver(() => { canvas.dataset.painted = ''; paint(); }).observe(box);
-
+    new ResizeObserver(paint).observe(box);
     return box;
   }
 
@@ -219,14 +210,14 @@
     link.className = 'tile-link';
     link.href = `/portfolio/${post.slug}`;
 
-    // audio hat kein bild, aber ein vorberechnetes spektrogramm
-    const audio = post.media.find((m) => m.kind === 'audio' && m.spectrum);
+    // audio hat kein bild, aber eine vorberechnete wellenform
+    const audio = post.media.find((m) => m.kind === 'audio' && m.waveform);
     const cover = post.cover && post.cover.kind !== 'audio' ? post.cover : null;
 
     if (cover) {
       link.appendChild(mediaNode(cover));
     } else if (audio) {
-      link.appendChild(spectrumNode(post, audio, link));
+      link.appendChild(waveNode(post, audio, link));
     } else {
       li.classList.add('no-media');
     }
