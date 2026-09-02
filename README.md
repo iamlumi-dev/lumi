@@ -204,10 +204,20 @@ vorgeschalteten Cache, nicht für den Browser.
 - Cookie: `httpOnly`, `sameSite=lax`, `secure` in Produktion.
 - Jede schreibende Anfrage braucht zusätzlich das **CSRF-Token** der Session
   als `X-CSRF-Token`-Header.
-- Die Login-Route ist auf 10 Versuche pro 15 Minuten und IP begrenzt;
-  erfolgreiche zählen nicht mit. Die Fehlermeldung verrät nicht, ob es den
-  Benutzernamen gibt, und es wird auch ohne Treffer ein Hash geprüft, damit
-  die Antwortzeit nichts preisgibt.
+- **Zweiter Faktor** (TOTP nach RFC 6238), optional pro Konto, mit acht
+  Wiederherstellungs-Codes. Selbst gerechnet in `server/lib/totp.js` statt als
+  Abhängigkeit — es ist ein HMAC und eine Modulo-Rechnung, und es lässt sich
+  gegen die Testvektoren des Standards nachprüfen. Derselbe Code gilt nie
+  zweimal (`totp_last_step`).
+- **Begrenzung der Anmeldeversuche**: 10 Fehlversuche pro 15 Minuten und 30
+  pro Tag, je IP. Gerechnet aus der Tabelle `login_attempts`, also **neustart-
+  fest**. Abgewiesene Versuche zählen selbst nicht mit — sonst verlängerte
+  jeder weitere Klick die eigene Sperre.
+- **Jeder Versuch wird protokolliert**, in der Datenbank und als eine Zeile im
+  Journal. Im Editor unter `account → login attempts` einsehbar; das
+  Logformat ist für fail2ban gemacht (Filter in `SETUP.md`).
+- Die Fehlermeldung verrät nicht, ob es den Benutzernamen gibt, und es wird
+  auch ohne Treffer ein Hash geprüft, damit die Antwortzeit nichts preisgibt.
 - `/admin` wird **vor** `express.static` abgeriegelt — sonst würde der
   statische Handler die Dateien vorher ungeschützt ausliefern.
 

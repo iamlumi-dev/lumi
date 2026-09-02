@@ -5,6 +5,10 @@ import { db } from '../server/db.js';
 import { ROOT, config } from '../server/config.js';
 
 // --- 1. spalten nachtragen --------------------------------------------------
+// WICHTIG: jede spalte, die hier steht, muss AUCH in schema.sql stehen.
+// dieser abschnitt greift nur bei einer datenbank, in der die tabelle schon
+// existiert — eine frische bekommt ihre spalten aus schema.sql. wer das
+// vergisst, baut eine datenbank, die nur nach einem update funktioniert.
 // "CREATE TABLE IF NOT EXISTS" laesst eine bereits vorhandene tabelle in ruhe.
 // spalten, die spaeter dazugekommen sind, muessen deshalb einzeln nachgezogen
 // werden. das passiert VOR dem einspielen von schema.sql, weil dort indizes
@@ -17,6 +21,10 @@ const ADDED_COLUMNS = [
   ['pages', 'tab_group', "TEXT NOT NULL DEFAULT ''"],
   ['pages', 'position',  'INTEGER NOT NULL DEFAULT 0'],
   ['links', 'note',      "TEXT NOT NULL DEFAULT ''"],
+  // zweiter faktor
+  ['users', 'totp_secret',    'TEXT'],
+  ['users', 'totp_pending',   'TEXT'],
+  ['users', 'totp_last_step', 'INTEGER'],
 ];
 
 const tableExists = (name) =>

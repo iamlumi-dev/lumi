@@ -152,6 +152,17 @@ Passwort verloren geht — es gibt bewusst keine Zurücksetzen-per-Mail-Funktion
 Anmelden dann unter `/login/`, der Editor liegt unter `/admin/`. Beide sind
 nirgends auf der Seite verlinkt.
 
+### Zweiten Faktor einschalten
+
+Im Editor unter **account → two-factor → set up**: QR-Code mit einer
+Authenticator-App scannen (Aegis, Ente Auth, Google Authenticator …), den
+sechsstelligen Code eintippen, fertig. Danach werden **acht
+Wiederherstellungs-Codes einmalig angezeigt** — die gehören in den
+Passwort-Manager, jeder bringt einmalig hinein, wenn das Handy weg ist.
+
+Ist der zweite Faktor aktiv, reicht ein gestohlenes Passwort nicht mehr, und
+Durchprobieren über das Netz ist damit erledigt.
+
 ---
 
 ## 6. Start prüfen
@@ -293,7 +304,13 @@ werden — aber gut zu wissen:
 - Alle SQL-Abfragen laufen über **Prepared Statements**.
 - **Passwörter** als scrypt-Hash, **Session-Tokens** nur als SHA-256-Hash.
 - **CSRF-Token** für jede schreibende Anfrage, zusätzlich zu `sameSite=lax`.
-- **10 Anmeldeversuche** pro 15 Minuten und IP.
+- **Begrenzung der Anmeldeversuche**: 10 Fehlversuche pro 15 Minuten und
+  30 pro Tag, je IP-Adresse. Gerechnet wird aus der Tabelle
+  `login_attempts`, nicht aus einem Zähler im Arbeitsspeicher — ein
+  Neustart setzt sie also **nicht** zurück. Abgewiesene Versuche zählen
+  selbst nicht mit, sonst verlängerte jeder weitere Klick die eigene Sperre.
+- **Zweiter Faktor** (TOTP, RFC 6238) optional pro Konto, mit
+  Wiederherstellungs-Codes. Derselbe Code gilt nie zweimal.
 - **`/admin` wird vor `express.static` abgeriegelt** — die Reihenfolge in
   `server/index.js` ist hier sicherheitsrelevant und sollte nicht verschoben
   werden.
@@ -362,6 +379,62 @@ zu füllen, damit man beim Entwickeln etwas zu sehen hat.
 
 ---
 
+## 11b. Anmeldeversuche im Blick behalten
+
+Jeder Versuch landet in der Datenbank **und** als eine Zeile im Journal:
+
+```
+lumiswork login ok ip=1.2.3.4 user="lumi"
+lumiswork login FAILED ip=5.6.7.8 user="admin" reason=bad_credentials
+```
+
+Im Editor stehen die letzten 25 unter **account → login attempts**, dazu eine
+Zusammenfassung der letzten 24 Stunden. Auf dem Server:
+
+```bash
+journalctl -u lumiswork | grep 'lumiswork login FAILED'
+```
+
+### fail2ban
+
+Die Begrenzung in der App gilt pro IP-Adresse. Gegen jemanden, der von vielen
+Adressen aus probiert, hilft nur eine Sperre in der Firewall. Dafür gibt es
+das Logformat oben.
+
+`/etc/fail2ban/filter.d/lumiswork.conf`:
+
+```ini
+[Definition]
+failregex = ^.*lumiswork login FAILED ip=<HOST> .*$
+ignoreregex =
+```
+
+`/etc/fail2ban/jail.d/lumiswork.conf`:
+
+```ini
+[lumiswork]
+enabled  = true
+backend  = systemd
+journalmatch = _SYSTEMD_UNIT=lumiswork.service
+filter   = lumiswork
+maxretry = 15
+findtime = 1h
+bantime  = 24h
+```
+
+Prüfen:
+
+```bash
+sudo fail2ban-regex "$(journalctl -u lumiswork -n 200 --no-pager)" \
+     /etc/fail2ban/filter.d/lumiswork.conf
+sudo fail2ban-client status lumiswork
+```
+
+`maxretry` ist absichtlich höher als das App-Limit (15 gegen 10): so greift
+zuerst die sanfte Bremse der App und erst danach die harte Sperre der Firewall.
+
+---
+
 ## 12. Wenn etwas nicht geht
 
 | Symptom | Ursache |
@@ -373,6 +446,9 @@ zu füllen, damit man beim Entwickeln etwas zu sehen hat.
 | Kein Hintergrund-Canvas | p5-CDN blockiert oder CSP zu eng → Browser-Konsole prüfen |
 | Schrift ist Fallback-Monospace | Google Fonts blockiert → notfalls Fonts lokal ablegen und CSP anpassen |
 | Alles hinter dem Proxy hat dieselbe IP | `TRUST_PROXY=1` fehlt in der `.env` |
+| Login gesperrt, obwohl das Passwort stimmt | Fehlversuche derselben IP im Fenster. Warten, oder `DELETE FROM login_attempts WHERE ip = '…'` |
+| Code aus der App wird nicht angenommen | Uhr des Handys prüfen. Toleranz ist ±30 s. Ein bereits benutzter Code gilt nicht nochmal — den nächsten abwarten |
+| Handy verloren | einen der Wiederherstellungs-Codes im Code-Feld eingeben, danach im Editor neu einrichten |
 
 ---
 

@@ -72,7 +72,13 @@ CREATE TABLE IF NOT EXISTS users (
   username      TEXT    NOT NULL UNIQUE,
   password_hash TEXT    NOT NULL,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-  last_login_at TEXT
+  last_login_at TEXT,
+
+  -- zweiter faktor. secret = scharf, pending = eingerichtet aber noch nicht
+  -- bestaetigt, last_step verhindert, dass derselbe code zweimal gilt.
+  totp_secret    TEXT,
+  totp_pending   TEXT,
+  totp_last_step INTEGER
 );
 
 -- ---- merkzettel -----------------------------------------------------------
@@ -84,6 +90,36 @@ CREATE TABLE IF NOT EXISTS meta (
   value TEXT NOT NULL DEFAULT '',
   at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ---- anmeldeversuche ------------------------------------------------------
+-- jeder versuch wird festgehalten, erfolgreiche wie gescheiterte. das dient
+-- zwei zwecken: die begrenzung rechnet daraus (und uebersteht damit einen
+-- neustart, anders als ein zaehler im arbeitsspeicher), und lumi kann
+-- nachsehen, ob jemand es versucht hat.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  at       TEXT    NOT NULL DEFAULT (datetime('now')),
+  ip       TEXT    NOT NULL DEFAULT '',
+  username TEXT    NOT NULL DEFAULT '',
+  ok       INTEGER NOT NULL DEFAULT 0 CHECK (ok IN (0,1)),
+  reason   TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_attempts_ip ON login_attempts (ip, at);
+CREATE INDEX IF NOT EXISTS idx_attempts_at ON login_attempts (at);
+
+-- ---- wiederherstellungs-codes fuer den zweiten faktor ---------------------
+-- gespeichert wird nur ein sha-256-hash. die codes haben genug zufall, dass
+-- daran nichts zu raten ist — anders als bei passwoertern braucht es hier
+-- kein langsames verfahren.
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash TEXT    NOT NULL,
+  used_at   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_recovery_user ON recovery_codes (user_id);
 
 -- ---- sessions -------------------------------------------------------------
 -- serverseitige sessions: im cookie steht nur ein zufallstoken, in der

@@ -911,31 +911,163 @@
   const ACCOUNT = {
     title: 'account',
     async render(into) {
-      into.appendChild(el('h2', { text: 'account' }));
+      const me = await api('/auth/me');
 
-      const form = el('form', { class: 'form' });
-      form.appendChild(field('current password',
+      into.appendChild(el('h2', { text: 'account' }));
+      into.appendChild(el('p', { class: 'dim', text: `signed in as ${me.username}.` }));
+
+      /* ---- passwort ---- */
+      into.appendChild(el('h3', { text: 'password' }));
+      const pw = el('form', { class: 'form' });
+      pw.appendChild(field('current password',
         el('input', { type: 'password', name: 'current', autocomplete: 'current-password', required: true })));
-      form.appendChild(field('new password — at least 12 characters',
+      pw.appendChild(field('new password — at least 12 characters',
         el('input', { type: 'password', name: 'next', autocomplete: 'new-password', required: true })));
-      form.appendChild(el('div', { class: 'form-row' }, [
+      pw.appendChild(el('div', { class: 'form-row' }, [
         el('button', { type: 'submit', class: 'roomy', text: 'change password' }),
       ]));
-
-      form.addEventListener('submit', guard(async (e) => {
+      pw.addEventListener('submit', guard(async (e) => {
         e.preventDefault();
         await api('/auth/password', {
           method: 'POST',
-          body: { current: val(form, 'current'), next: val(form, 'next') },
+          body: { current: val(pw, 'current'), next: val(pw, 'next') },
         });
-        form.reset();
+        pw.reset();
         toast('password changed — other sessions were signed out');
       }));
-
-      into.appendChild(form);
+      into.appendChild(pw);
       into.appendChild(el('p', { class: 'row-sub', text: 'forgot it? on the server: npm run admin:create -- <username>' }));
+
+      /* ---- zweiter faktor ---- */
+      into.appendChild(el('h3', { text: 'two-factor' }));
+      into.appendChild(me.totp ? totpOn(me) : totpOff());
+
+      /* ---- anmeldeversuche ---- */
+      into.appendChild(el('h3', { text: 'login attempts' }));
+      into.appendChild(await attemptsBox());
     },
   };
+
+  /* ---- zweiter faktor: aus ------------------------------------------------ */
+
+  function totpOff() {
+    const box = el('div');
+    box.appendChild(el('p', { class: 'dim', text: 'off. with it on, the password alone is not enough to get in — brute force stops being a concern.' }));
+
+    const start = el('button', { type: 'button', class: 'roomy', text: 'set up' });
+    box.appendChild(el('div', { class: 'form-row' }, [start]));
+
+    start.addEventListener('click', guard(async () => {
+      const setup = await api('/auth/totp/setup', { method: 'POST' });
+
+      const panel = el('div');
+      panel.appendChild(el('p', { class: 'dim', text: '1. scan this with an authenticator app (aegis, ente auth, google authenticator …)' }));
+
+      if (setup.qr) {
+        const img = el('img', { src: setup.qr, alt: 'qr code for the authenticator app', width: 200, height: 200 });
+        img.style.border = '1.5px solid var(--altbgclr)';
+        panel.appendChild(img);
+      }
+
+      panel.appendChild(el('p', { class: 'row-sub', text: '… or type the key in by hand:' }));
+      const secret = el('code', { class: 'secret', text: setup.secret.replace(/(.{4})/g, '$1 ').trim() });
+      panel.appendChild(secret);
+
+      panel.appendChild(el('p', { class: 'dim', text: '2. then enter the six digits it shows:' }));
+      const code = input('code', '', { inputmode: 'numeric', maxlength: 6, placeholder: '000000' });
+      const confirm = el('button', { type: 'button', class: 'roomy', text: 'turn on' });
+      panel.appendChild(el('div', { class: 'form-row' }, [code, confirm]));
+
+      const finish = guard(async () => {
+        const res = await api('/auth/totp/enable', { method: 'POST', body: { code: code.value } });
+        panel.replaceChildren();
+        panel.appendChild(el('p', { text: 'two-factor is on.' }));
+        panel.appendChild(el('p', { class: 'dim', text: 'these recovery codes are shown once and never again. put them in keepass now — each one gets you in if the phone is gone, and each works only once.' }));
+        const list = el('div', { class: 'codes' });
+        for (const c of res.recoveryCodes) list.appendChild(el('code', { text: c }));
+        panel.appendChild(list);
+        panel.appendChild(el('div', { class: 'form-row' }, [
+          el('button', {
+            type: 'button', class: 'roomy', text: 'copy all',
+            onclick: () => navigator.clipboard?.writeText(res.recoveryCodes.join('\n'))
+              .then(() => toast('copied')).catch(() => toast('could not copy', true)),
+          }),
+          el('button', { type: 'button', class: 'roomy', text: 'done', onclick: () => show('account') }),
+        ]));
+        toast('two-factor on');
+      });
+
+      confirm.addEventListener('click', finish);
+      code.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(); } });
+
+      box.replaceChildren(panel);
+      code.focus();
+    }));
+
+    return box;
+  }
+
+  /* ---- zweiter faktor: an ------------------------------------------------- */
+
+  function totpOn(me) {
+    const box = el('div');
+    box.appendChild(el('p', { text: 'on.' }));
+    box.appendChild(el('p', { class: 'dim', text: `${me.recoveryLeft} recovery code${me.recoveryLeft === 1 ? '' : 's'} left.` }));
+
+    const password = el('input', { type: 'password', name: 'pw', autocomplete: 'current-password', placeholder: 'password' });
+    const code = input('code', '', { inputmode: 'numeric', maxlength: 13, placeholder: 'code or recovery code' });
+
+    box.appendChild(el('div', { class: 'form-row' }, [
+      password, code,
+      el('button', {
+        type: 'button', class: 'roomy', text: 'turn off',
+        onclick: guard(async () => {
+          if (!confirmed('turn two-factor off?')) return;
+          await api('/auth/totp/disable', {
+            method: 'POST', body: { password: password.value, code: code.value },
+          });
+          toast('two-factor off');
+          show('account');
+        }),
+      }),
+    ]));
+    box.appendChild(el('p', { class: 'row-sub', text: 'turning it off needs both the password and a code — a stolen session alone cannot remove it.' }));
+    return box;
+  }
+
+  /* ---- anmeldeversuche ---------------------------------------------------- */
+
+  async function attemptsBox() {
+    const box = el('div');
+    const { summary, recent, limits } = await api('/auth/attempts');
+
+    box.appendChild(el('p', {
+      class: summary.failed ? '' : 'dim',
+      text: summary.failed
+        ? `last 24 hours: ${summary.failed} failed from ${summary.addresses} address${summary.addresses === 1 ? '' : 'es'}, ${summary.succeeded} successful.`
+        : `last 24 hours: nothing failed, ${summary.succeeded} successful sign-in${summary.succeeded === 1 ? '' : 's'}.`,
+    }));
+    box.appendChild(el('p', { class: 'row-sub', text: `limits per address: ${limits.short.max} failures per ${limits.short.minutes} minutes, ${limits.day.max} per day. counted from the database, so a restart does not reset them.` }));
+
+    if (!recent.length) {
+      box.appendChild(el('p', { class: 'dim', text: 'nothing recorded yet.' }));
+      return box;
+    }
+
+    const rows = el('div', { class: 'rows' });
+    for (const a of recent) {
+      rows.appendChild(el('div', { class: `row${a.ok ? ' muted' : ''}` }, [
+        el('span', { class: 'row-sub', text: a.at }),
+        el('div', { class: 'row-main' }, [
+          el('span', { text: a.ok ? 'signed in' : `failed — ${a.reason || 'unknown'}` }),
+        ]),
+        el('span', { class: 'row-sub', text: a.username ? `user "${a.username}"` : 'no user' }),
+        el('span', { class: 'row-sub', text: a.ip || 'no address' }),
+      ]));
+    }
+    box.appendChild(rows);
+    return box;
+  }
 
   /* =====================================================================
      rahmen

@@ -28,6 +28,15 @@
           <span>password</span>
           <input type="password" name="password" autocomplete="current-password" required>
         </label>
+        <!-- erscheint erst, wenn das konto einen zweiten faktor hat -->
+        <label class="field" id="codeField" hidden>
+          <span>code from your app</span>
+          <!-- kein pattern: hier passt auch ein wiederherstellungs-code, und der
+               enthaelt buchstaben. geprueft wird ohnehin auf dem server. -->
+          <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="13" spellcheck="false" autocapitalize="none">
+        </label>
+
         <div class="form-row">
           <button type="submit" id="submit">enter</button>
           <span id="msg" role="status" aria-live="polite"></span>

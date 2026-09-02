@@ -25,7 +25,8 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
-    "multer": "^2.3.0"
+    "multer": "^2.3.0",
+    "qrcode": "^1.5.4"
   },
   "allowScripts": {
     "better-sqlite3@11.10.0": true
