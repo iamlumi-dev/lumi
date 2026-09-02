@@ -16,7 +16,7 @@ import { config } from './config.js';
 import { api } from './routes/api.js';
 import { auth } from './routes/auth.js';
 import { admin } from './routes/admin.js';
-import { withSession, requireAuth, requireCsrf } from './auth.js';
+import { withSession, requireAuth, requireCsrf, COOKIE, cookieOptions } from './auth.js';
 
 const app = express();
 
@@ -66,6 +66,15 @@ app.use('/api', express.json({ limit: '256kb' }));
 // haengt req.session an, wenn ein gueltiges cookie mitkommt
 app.use(withSession);
 
+// wurde die session serverseitig verlaengert, muss auch das cookie im
+// browser nachziehen — sonst laeuft es dort ab, obwohl die session gilt
+app.use((req, res, next) => {
+  if (req.session?.renewed) {
+    res.cookie(COOKIE, req.cookies[COOKIE], cookieOptions());
+  }
+  next();
+});
+
 // ---- rate limiting --------------------------------------------------------
 // grosszuegig fuer normale besucher, bremst aber scraper und brute-force.
 app.use(
@@ -78,6 +87,13 @@ app.use(
     message: { error: 'zu viele anfragen' },
   })
 );
+
+// ---- wer schon angemeldet ist, braucht das formular nicht -----------------
+// muss vor express.static stehen, sonst liefert der die seite vorher aus
+app.get(['/login', '/login/'], (req, res, next) => {
+  if (req.session) return res.redirect('/admin/');
+  next();
+});
 
 // ---- riegel vor dem statischen ausliefern ---------------------------------
 // die editor-oberflaeche liegt unter public/admin/, also im ordner, den

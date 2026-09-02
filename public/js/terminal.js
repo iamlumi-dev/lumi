@@ -212,7 +212,14 @@
     home: { describe: '', hidden: true, run: () => go('/') },
     fastfetch: { describe: '', hidden: true, run: fastfetch },
     neofetch: { describe: '', hidden: true, run: fastfetch },
-    login: { describe: '', hidden: true, run: () => go('/login/') },
+    login: {
+      describe: '', hidden: true,
+      // laeuft schon eine gueltige session, geht es direkt in den editor
+      async run() {
+        const ok = await fetch('/api/auth/me').then((r) => r.ok).catch(() => false);
+        go(ok ? '/admin/' : '/login/');
+      },
+    },
     recs: { describe: '', hidden: true, run: () => go('/shoutouts/') },
     ls: { describe: '', hidden: true, run: () => line('work  about  shoutouts  splash') },
     sudo: { describe: '', hidden: true, run: () => line('lumi is not in the sudoers file. this incident will be reported.') },

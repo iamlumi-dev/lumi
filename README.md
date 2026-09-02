@@ -208,6 +208,12 @@ vorgeschalteten Cache, nicht für den Browser.
 - Die Session ist ein Zufallstoken im Cookie; in der Datenbank liegt nur dessen
   SHA-256-Hash. Ein Datenbank-Leck ergibt also keine gültige Session.
 - Cookie: `httpOnly`, `sameSite=lax`, `secure` in Produktion.
+- **Gleitende Gültigkeit:** läuft eine Session in weniger als der Hälfte ihrer
+  Laufzeit ab, wird sie bei der nächsten Anfrage verlängert und das Cookie
+  zieht mit. Wer die Seite regelmäßig benutzt, muss sich nie wieder anmelden —
+  anders als bei einer festen Frist, die auch mitten in der Arbeit ablaufen
+  kann. `/login/` leitet direkt in den Editor weiter, wenn schon eine Session
+  besteht; der Terminal-Befehl `login` fragt vorher nach.
 - Jede schreibende Anfrage braucht zusätzlich das **CSRF-Token** der Session
   als `X-CSRF-Token`-Header.
 - **Zweiter Faktor** (TOTP nach RFC 6238), optional pro Konto, mit acht
@@ -282,12 +288,20 @@ Das Feld spricht bewusst dieselbe Sprache wie der Hintergrund der Seite: dort
 steht ein Punktraster im Wind, hier wird eines von der Musik geschoben. Jeder
 Punkt hat einen Ruheplatz und ein Frequenzband — die Energie in seinem Band
 drückt ihn nach außen und lässt ihn heller werden, eine Feder zieht ihn zurück.
-Ein Bass-Anschlag (ein Sprung im gleitenden Mittel der untersten Bänder) stößt
-das ganze Feld kurz auseinander.
+Bass wirkt auf **zwei** Arten, und die dürfen sich nicht vermischen: ein
+Anschlag — ein Sprung gegenüber dem gleitenden Mittel — gibt einen kurzen Stoß,
+und solange etwas im Bassbereich spielt, hält ein zweiter, dauerhafter Anteil
+das Feld weiter offen. Ohne den zweiten wurde durchgehender Bass vom Mittelwert
+aufgesogen und hatte nach ein paar Sekunden keine Wirkung mehr.
+
+Welcher Punkt für welchen Bereich zuständig ist, sieht man an **Größe und
+Farbton**: tiefe Töne sind große, dunkle Punkte, hohe kleine und blasse. Die
+Farbskala läuft dabei durch die fünf Farben der Seite, es kommt keine dazu.
 
 Sein Aussehen ist im Editor unter **visualizer** einstellbar — Anzahl, Glättung,
-Reichweite, Rückstellung, Stärke des Bass-Anschlags, dazu **Verbindungslinien**
-(macht aus dem Schwarm ein Netz) und **Spuren**. Die Einstellungen gelten für
+Reichweite, Rückstellung, Bass-Anschlag und Bass-Halten, dazu vier Schalter:
+**Pumpen** (Punkte wachsen mit dem Ton), **Farbe nach Frequenz**,
+**Verbindungslinien** (macht aus dem Schwarm ein Netz) und **Spuren**. Die Einstellungen gelten für
 die ganze Seite, nicht je Track, und liegen als JSON in der `meta`-Tabelle.
 Eine Vorschau im Editor läuft mit erfundener Musik und derselben
 Zeichenroutine wie die Seite, sodass Änderungen sofort sichtbar sind.

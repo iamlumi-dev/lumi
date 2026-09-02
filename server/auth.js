@@ -59,6 +59,9 @@ const selectSession = db.prepare(`
   WHERE s.token_hash = ? AND s.expires_at > datetime('now')
 `);
 const deleteSession = db.prepare('DELETE FROM sessions WHERE token_hash = ?');
+const extendSession = db.prepare(
+  "UPDATE sessions SET expires_at = datetime('now', ?) WHERE token_hash = ?"
+);
 const deleteExpired = db.prepare("DELETE FROM sessions WHERE expires_at <= datetime('now')");
 const touchLogin = db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?");
 
@@ -73,7 +76,20 @@ export function createSession(userId) {
 
 export function readSession(token) {
   if (!token) return null;
-  return selectSession.get(sha256(token)) || null;
+  const hash = sha256(token);
+  const session = selectSession.get(hash);
+  if (!session) return null;
+
+  /* gleitende gueltigkeit: laeuft die session in weniger als der haelfte
+     ihrer laufzeit ab, wird sie verlaengert. wer die seite regelmaessig
+     benutzt, muss sich damit nie wieder anmelden — anders als bei einer
+     festen frist, die auch mitten in der arbeit ablaufen kann. */
+  const half = config.sessionDays * 12 * 60 * 60 * 1000;
+  if (new Date(session.expires_at + 'Z').getTime() - Date.now() < half) {
+    extendSession.run(`+${config.sessionDays} days`, hash);
+    session.renewed = true;
+  }
+  return session;
 }
 
 export function destroySession(token) {

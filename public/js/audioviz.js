@@ -68,9 +68,32 @@ window.__viz = (function () {
      gilt fuer die ganze seite und laesst sich zur laufzeit aendern.       */
 
   const VIZ_DEFAULTS = {
-    count: 260, smoothing: 0.45, reach: 1, spring: 1, pulse: 1,
-    connect: false, trails: false,
+    count: 260, smoothing: 0.45, reach: 1, spring: 1, pulse: 1, drive: 1,
+    connect: false, trails: false, pump: true, tint: true,
   };
+
+  /* die fuenf farben der seite, von dunkel nach hell. tiefe toene bekommen
+     die dunkleren, hohe die helleren — so sieht man, welcher punkt fuer
+     welchen bereich zustaendig ist, ohne die palette zu verlassen. */
+  const TONES = [
+    [54, 97, 30],      // --altbgclr
+    [108, 194, 61],    // --acntclr
+    [168, 179, 135],   // die farbe des hintergrund-sketches
+    [181, 225, 158],   // --titleclr
+    [204, 227, 195],   // --txtclr
+  ];
+
+  function toneFor(t) {
+    const at = t * (TONES.length - 1);
+    const a = Math.floor(at);
+    const b = Math.min(TONES.length - 1, a + 1);
+    const f = at - a;
+    return [
+      Math.round(TONES[a][0] + (TONES[b][0] - TONES[a][0]) * f),
+      Math.round(TONES[a][1] + (TONES[b][1] - TONES[a][1]) * f),
+      Math.round(TONES[a][2] + (TONES[b][2] - TONES[a][2]) * f),
+    ];
+  }
 
   function particles(canvas, options = {}) {
     const ctx = canvas.getContext('2d');
@@ -78,6 +101,7 @@ window.__viz = (function () {
     let dots = [];
     let bassAvg = 0;
     let pulse = 0;
+    let hold = 0;          // dauerhafter bassanteil
     let seeded = '';
 
     function seed(w, h) {
@@ -90,11 +114,15 @@ window.__viz = (function () {
         const r = Math.sqrt(Math.random()) * unit * 0.46;
         const hx = w / 2 + Math.cos(a) * r;
         const hy = h / 2 + Math.sin(a) * r;
+        // band aus dem abstand zur mitte: tiefe toene innen, hohe aussen
+        const band = Math.min(0.98, r / (unit * 0.46));
         dots.push({
           hx, hy, x: hx, y: hy, vx: 0, vy: 0,
-          // band aus dem abstand zur mitte: tiefe toene innen, hohe aussen
-          band: Math.min(0.98, r / (unit * 0.46)),
-          size: 0.8 + Math.random() * 1.6,
+          band,
+          // tiefe toene sind grosse, traege punkte, hohe kleine und flinke —
+          // dadurch sieht man auch ohne farbe, wer wofuer steht
+          size: (2.4 - band * 1.5) * (0.75 + Math.random() * 0.5),
+          tone: toneFor(band),
           drift: Math.random() * Math.PI * 2,
           e: 0,
         });
@@ -155,14 +183,29 @@ window.__viz = (function () {
       const cy = h / 2;
       const unit = Math.min(w, h);
 
-      // bass getrennt beobachten: ein anschlag ist ein sprung darin
+      /* bass wirkt auf zwei arten, und die duerfen sich nicht vermischen:
+         - HALTEN: solange etwas im bassbereich spielt, steht das feld
+           weiter offen. das ist der dauerhafte anteil.
+         - ANSCHLAG: ein sprung gegenueber dem gleitenden mittel gibt einen
+           kurzen stoss obendrauf.
+         frueher gab es nur den anschlag — dadurch wurde durchgehender bass
+         vom mittelwert aufgesogen und hatte nach kurzer zeit keine
+         wirkung mehr. */
       let bass = 0;
       const bassBins = Math.max(1, Math.floor(freq.length * 0.06));
       for (let i = 0; i < bassBins; i++) bass += freq[i];
       bass = bass / bassBins / 255;
+
+      // schnell auf, langsam ab: ein bass-lauf soll nicht flackern
+      const rate = bass > hold ? 0.35 : 0.06;
+      hold += (bass - hold) * rate;
+
       if (bass > bassAvg * 1.25 + 0.06) pulse = Math.min(1, pulse + 0.55 * opt.pulse);
       bassAvg += (bass - bassAvg) * 0.12;
       pulse *= 0.90;
+
+      // der dauerhafte anteil, mit dem alle punkte nach aussen stehen
+      const driveNow = hold * opt.drive;
 
       if (opt.trails) {
         // statt loeschen ein hauch hintergrund darueber — das ergibt die spur
@@ -186,9 +229,14 @@ window.__viz = (function () {
         d.vx += (dx / dist) * push;
         d.vy += (dy / dist) * push;
 
-        // feder zurueck zum ruheplatz, plus reibung
-        d.vx += (d.hx - d.x) * 0.012 * opt.spring;
-        d.vy += (d.hy - d.y) * 0.012 * opt.spring;
+        /* die feder zieht nicht zum ruheplatz, sondern zu einem punkt, der
+           mit dem bass nach aussen wandert. solange bass spielt, steht das
+           feld dadurch dauerhaft weiter offen statt zurueckzufallen. */
+        const spread = 1 + driveNow * 0.45;
+        const tx = cx + (d.hx - cx) * spread;
+        const ty = cy + (d.hy - cy) * spread;
+        d.vx += (tx - d.x) * 0.012 * opt.spring;
+        d.vy += (ty - d.y) * 0.012 * opt.spring;
         d.vx *= 0.90;
         d.vy *= 0.90;
 
@@ -201,17 +249,20 @@ window.__viz = (function () {
       if (opt.connect) connectDots(w, h, unit * 0.11);
 
       for (const d of dots) {
-        const bright = Math.min(1, 0.18 + d.e * 0.9 + pulse * 0.4);
-        const size = d.size * (1 + d.e * 1.1 + pulse * 0.5);
+        const bright = Math.min(1, 0.18 + d.e * 0.9 + pulse * 0.4 + driveNow * 0.15);
+        const size = opt.pump
+          ? d.size * (1 + d.e * 1.1 + pulse * 0.5)
+          : d.size;
+        const [r, g, bl] = opt.tint ? d.tone : [168, 179, 135];
         ctx.beginPath();
         ctx.arc(d.x, d.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(168, 179, 135, ${bright})`;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${bl}, ${bright})`;
         ctx.fill();
       }
 
       // ein ruhiger kreis in der mitte, der mit der lautstaerke atmet
       ctx.beginPath();
-      ctx.arc(cx, cy, unit * (0.05 + level * 0.05 + pulse * 0.02), 0, Math.PI * 2);
+      ctx.arc(cx, cy, unit * (0.05 + level * 0.05 + pulse * 0.02 + driveNow * 0.03), 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(108, 194, 61, ${0.25 + level * 0.5})`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
