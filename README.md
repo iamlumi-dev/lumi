@@ -113,6 +113,7 @@ server/
   lib/layout.js   Anordnung des Portfolios: Zeilen, Spalten, Plätze
   lib/poster.js   Standbilder für Videos, kleine Fassungen für Bilder
   lib/waveform.js Hüllkurve einer Audiodatei
+  lib/settings.js globale Einstellungen (Aussehen des Partikelfelds)
   lib/write.js    alle schreibenden Zugriffe
   lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
@@ -283,6 +284,17 @@ Punkt hat einen Ruheplatz und ein Frequenzband — die Energie in seinem Band
 drückt ihn nach außen und lässt ihn heller werden, eine Feder zieht ihn zurück.
 Ein Bass-Anschlag (ein Sprung im gleitenden Mittel der untersten Bänder) stößt
 das ganze Feld kurz auseinander.
+
+Sein Aussehen ist im Editor unter **visualizer** einstellbar — Anzahl, Glättung,
+Reichweite, Rückstellung, Stärke des Bass-Anschlags, dazu **Verbindungslinien**
+(macht aus dem Schwarm ein Netz) und **Spuren**. Die Einstellungen gelten für
+die ganze Seite, nicht je Track, und liegen als JSON in der `meta`-Tabelle.
+Eine Vorschau im Editor läuft mit erfundener Musik und derselben
+Zeichenroutine wie die Seite, sodass Änderungen sofort sichtbar sind.
+
+Verbindungslinien paarweise zu prüfen wäre bei 800 Punkten zu teuer
+(320 000 Paare je Bild). Die Punkte werden deshalb in ein grobes Raster
+einsortiert und nur mit den Nachbarzellen verglichen.
 
 **Die Lautstärke** wird durch Ziehen auf dem Partikelfeld geregelt, hoch lauter,
 runter leiser — auf dem Handy deutlich angenehmer als ein schmaler Regler.

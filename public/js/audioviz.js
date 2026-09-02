@@ -62,44 +62,94 @@ window.__viz = (function () {
 
      jeder punkt hat einen ruheplatz und ein frequenzband. die energie in
      seinem band druckt ihn nach aussen und laesst ihn heller werden; eine
-     feder zieht ihn zurueck. ein bass-anschlag stoesst das ganze feld kurz
-     auseinander.                                                          */
+     feder zieht ihn zurueck. ein bass-anschlag stoesst das feld auseinander.
 
-  function particles(canvas, count = 260) {
+     das aussehen kommt aus den einstellungen (im editor unter "visualizer"),
+     gilt fuer die ganze seite und laesst sich zur laufzeit aendern.       */
+
+  const VIZ_DEFAULTS = {
+    count: 260, smoothing: 0.45, reach: 1, spring: 1, pulse: 1,
+    connect: false, trails: false,
+  };
+
+  function particles(canvas, options = {}) {
     const ctx = canvas.getContext('2d');
-    const dots = [];
+    let opt = { ...VIZ_DEFAULTS, ...options };
+    let dots = [];
     let bassAvg = 0;
     let pulse = 0;
-    let seeded = 0;
+    let seeded = '';
 
     function seed(w, h) {
-      dots.length = 0;
+      dots = [];
       const unit = Math.min(w, h);
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < opt.count; i++) {
         // gleichmaessig auf einer scheibe verteilen, nicht in der mitte
         // gehaeuft — deshalb die wurzel
         const a = Math.random() * Math.PI * 2;
         const r = Math.sqrt(Math.random()) * unit * 0.46;
+        const hx = w / 2 + Math.cos(a) * r;
+        const hy = h / 2 + Math.sin(a) * r;
         dots.push({
-          hx: w / 2 + Math.cos(a) * r,     // ruheplatz
-          hy: h / 2 + Math.sin(a) * r,
-          x: w / 2 + Math.cos(a) * r,
-          y: h / 2 + Math.sin(a) * r,
-          vx: 0,
-          vy: 0,
+          hx, hy, x: hx, y: hy, vx: 0, vy: 0,
           // band aus dem abstand zur mitte: tiefe toene innen, hohe aussen
           band: Math.min(0.98, r / (unit * 0.46)),
           size: 0.8 + Math.random() * 1.6,
           drift: Math.random() * Math.PI * 2,
+          e: 0,
         });
       }
-      seeded = w * 31 + h;
+      seeded = `${w}x${h}x${opt.count}`;
+    }
+
+    /* verbindungslinien: paarweise pruefen waere bei 800 punkten zu teuer.
+       die punkte werden deshalb in ein grobes raster einsortiert und nur
+       mit den nachbarzellen verglichen. */
+    function connectDots(w, h, maxDist) {
+      const cell = maxDist;
+      const cols = Math.max(1, Math.ceil(w / cell));
+      const rows = Math.max(1, Math.ceil(h / cell));
+      const buckets = new Map();
+
+      for (const d of dots) {
+        const cx = Math.min(cols - 1, Math.max(0, Math.floor(d.x / cell)));
+        const cy = Math.min(rows - 1, Math.max(0, Math.floor(d.y / cell)));
+        const key = cy * cols + cx;
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(d);
+      }
+
+      ctx.lineWidth = 1;
+      for (const [key, list] of buckets) {
+        const cx = key % cols;
+        const cy = (key - cx) / cols;
+        // nur nach rechts und unten schauen, sonst jedes paar zweimal
+        for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 1]]) {
+          const other = buckets.get((cy + oy) * cols + (cx + ox));
+          if (!other) continue;
+          for (const a of list) {
+            for (const b of other) {
+              if (a === b) continue;
+              const dx = a.x - b.x;
+              const dy = a.y - b.y;
+              const dist = Math.hypot(dx, dy);
+              if (dist > maxDist) continue;
+              const near = 1 - dist / maxDist;
+              ctx.strokeStyle = `rgba(108, 194, 61, ${near * 0.28 * (0.3 + (a.e + b.e) / 2)})`;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
     }
 
     function draw(freq, level) {
       const w = canvas.width;
       const h = canvas.height;
-      if (seeded !== w * 31 + h) seed(w, h);
+      if (seeded !== `${w}x${h}x${opt.count}`) seed(w, h);
 
       const cx = w / 2;
       const cy = h / 2;
@@ -110,29 +160,35 @@ window.__viz = (function () {
       const bassBins = Math.max(1, Math.floor(freq.length * 0.06));
       for (let i = 0; i < bassBins; i++) bass += freq[i];
       bass = bass / bassBins / 255;
-      if (bass > bassAvg * 1.25 + 0.06) pulse = Math.min(1, pulse + 0.55);
+      if (bass > bassAvg * 1.25 + 0.06) pulse = Math.min(1, pulse + 0.55 * opt.pulse);
       bassAvg += (bass - bassAvg) * 0.12;
       pulse *= 0.90;
 
-      ctx.clearRect(0, 0, w, h);
+      if (opt.trails) {
+        // statt loeschen ein hauch hintergrund darueber — das ergibt die spur
+        ctx.fillStyle = 'rgba(11, 19, 6, 0.22)';
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+      }
 
       for (const d of dots) {
         // energie im band dieses punktes, nur bis 65% der baender —
         // darueber ist bei mp3 nichts mehr
         const bin = Math.floor((freq.length - 1) * 0.65 * (d.band ** 1.6));
-        const energy = (freq[bin] || 0) / 255;
+        d.e = (freq[bin] || 0) / 255;
 
         // nach aussen druecken: eigenes band plus der gemeinsame stoss
         const dx = d.x - cx;
         const dy = d.y - cy;
         const dist = Math.hypot(dx, dy) || 1;
-        const push = (energy * 0.9 + pulse * 1.4) * unit * 0.0016;
+        const push = (d.e * 0.9 + pulse * 1.4) * unit * 0.0016 * opt.reach;
         d.vx += (dx / dist) * push;
         d.vy += (dy / dist) * push;
 
         // feder zurueck zum ruheplatz, plus reibung
-        d.vx += (d.hx - d.x) * 0.012;
-        d.vy += (d.hy - d.y) * 0.012;
+        d.vx += (d.hx - d.x) * 0.012 * opt.spring;
+        d.vy += (d.hy - d.y) * 0.012 * opt.spring;
         d.vx *= 0.90;
         d.vy *= 0.90;
 
@@ -140,10 +196,13 @@ window.__viz = (function () {
         d.drift += 0.01;
         d.x += d.vx + Math.cos(d.drift) * 0.12;
         d.y += d.vy + Math.sin(d.drift * 0.8) * 0.12;
+      }
 
-        const bright = Math.min(1, 0.18 + energy * 0.9 + pulse * 0.4);
-        const size = d.size * (1 + energy * 1.1 + pulse * 0.5);
+      if (opt.connect) connectDots(w, h, unit * 0.11);
 
+      for (const d of dots) {
+        const bright = Math.min(1, 0.18 + d.e * 0.9 + pulse * 0.4);
+        const size = d.size * (1 + d.e * 1.1 + pulse * 0.5);
         ctx.beginPath();
         ctx.arc(d.x, d.y, size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(168, 179, 135, ${bright})`;
@@ -158,7 +217,13 @@ window.__viz = (function () {
       ctx.stroke();
     }
 
-    return { draw };
+    // einstellungen zur laufzeit aendern — die vorschau im editor braucht das
+    function configure(next) {
+      opt = { ...opt, ...next };
+      seeded = '';
+    }
+
+    return { draw, configure };
   }
 
   /* ---- hilfen -------------------------------------------------------------- */
@@ -195,5 +260,5 @@ window.__viz = (function () {
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  return { drawWaveform, particles, fit, loadWaveform, formatTime };
+  return { drawWaveform, particles, VIZ_DEFAULTS, fit, loadWaveform, formatTime };
 })();

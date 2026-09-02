@@ -2,6 +2,14 @@
 (function () {
   const wrap = document.getElementById('postWrap');
 
+  // aussehen des partikelfelds — gilt fuer die ganze seite, kommt aus dem
+  // editor. faellt die anfrage aus, bleiben die vorgaben.
+  let viz = { ...window.__viz.VIZ_DEFAULTS };
+  const vizReady = fetch('/api/viz')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => { if (d?.viz) viz = { ...viz, ...d.viz }; })
+    .catch(() => {});
+
   // slug steckt im pfad: /portfolio/<slug>
   const slug = decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop());
 
@@ -142,7 +150,8 @@
         const gain = ctx.createGain();
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = 0.75;
+        // weniger glaettung = haerter am takt. kommt aus den einstellungen.
+        analyser.smoothingTimeConstant = viz.smoothing;
         source.connect(gain);
         gain.connect(analyser);
         analyser.connect(ctx.destination);
@@ -166,7 +175,9 @@
     setVolume(volume);
 
     /* ---- zeichnen ---- */
-    const viz = window.__viz.particles(canvas);
+    const field = window.__viz.particles(canvas, viz);
+    // die einstellungen koennen nach dem aufbau eintreffen
+    vizReady.then(() => field.configure(viz));
     const idle = new Uint8Array(128);
     let raf = null;
 
@@ -181,7 +192,7 @@
         for (let i = 0; i < data.length; i++) sum += data[i];
         level = sum / data.length / 255;
       }
-      viz.draw(data, level);
+      field.draw(data, level);
 
       // im ruhezustand einmal nachzeichnen und dann aufhoeren
       if (!audio.paused) raf = requestAnimationFrame(frame);
@@ -273,7 +284,7 @@
     audio.addEventListener('timeupdate', () => { paintWave(); sync(); });
 
     // einmal zeichnen, damit auch vor dem ersten abspielen etwas dasteht
-    requestAnimationFrame(() => { window.__viz.fit(canvas); viz.draw(idle, 0); });
+    requestAnimationFrame(() => { window.__viz.fit(canvas); field.draw(idle, 0); });
 
     return box;
   }

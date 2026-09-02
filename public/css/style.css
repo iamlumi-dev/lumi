@@ -755,6 +755,46 @@ input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
 
 input[type="checkbox"] { accent-color: var(--acntclr); }
 
+/* schieberegler: eine duenne linie und ein kleines quadrat, sonst nichts.
+   die vorgabe des browsers ist blau-weiss und wuerde die palette sprengen. */
+input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    height: 16px;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 1.5px;
+    background: var(--altbgclr);
+}
+input[type="range"]::-moz-range-track { height: 1.5px; background: var(--altbgclr); }
+input[type="range"]::-moz-range-progress { height: 1.5px; background: var(--acntclr); }
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    margin-top: -4.25px;
+    background: var(--acntclr);
+    border: none;
+    border-radius: 0;
+}
+input[type="range"]::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    background: var(--acntclr);
+    border: none;
+    border-radius: 0;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb { background: var(--titleclr); }
+input[type="range"]:focus-visible::-moz-range-thumb { background: var(--titleclr); }
+
 .form-row {
     display: flex;
     align-items: center;

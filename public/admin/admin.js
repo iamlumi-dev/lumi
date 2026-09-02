@@ -1068,6 +1068,123 @@
   }
 
   /* =====================================================================
+     abschnitt: aussehen des partikelfelds
+     =====================================================================
+     gilt fuer die ganze seite, nicht je audiodatei. die vorschau laeuft mit
+     erfundenen frequenzdaten und derselben zeichenroutine wie die seite —
+     was hier passiert, passiert dort auch.                                */
+
+  const VISUALIZER = {
+    title: 'visualizer',
+    async render(into) {
+      const { viz, fields } = await api('/admin/viz');
+
+      into.appendChild(el('h2', { text: 'visualizer' }));
+      into.appendChild(el('p', { class: 'dim', text: 'the particle field on audio detail pages. these settings apply to the whole site, not to a single track. changes show up in the preview right away and are saved when you press save.' }));
+
+      /* ---- vorschau ---- */
+      const canvas = el('canvas', { class: 'viz-preview' });
+      into.appendChild(canvas);
+
+      const current = { ...viz };
+      const field = window.__viz.particles(canvas, current);
+
+      // erfundene musik: ein paar schwingungen plus ein takt alle 500 ms
+      const fake = new Uint8Array(128);
+      let t = 0;
+      let beat = 0;
+      let raf = null;
+
+      const tick = () => {
+        window.__viz.fit(canvas);
+        t += 0.05;
+        beat = t % 2 < 0.12 ? 1 : beat * 0.86;
+        for (let i = 0; i < fake.length; i++) {
+          const f = i / fake.length;
+          const wobble = 0.5 + 0.5 * Math.sin(t * (1 + f * 3) + i * 0.2);
+          const bassy = (1 - f) ** 1.5;
+          fake[i] = Math.min(255, (bassy * 190 + wobble * 70 + beat * bassy * 120));
+        }
+        field.draw(fake, 0.35 + beat * 0.3);
+        raf = requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      // die vorschau anhalten, wenn der abschnitt verlassen wird
+      stopPreview = () => { if (raf) cancelAnimationFrame(raf); raf = null; };
+
+      /* ---- regler ---- */
+      const form = el('form', { class: 'editor-form form' });
+      const inputs = {};
+
+      for (const [name, spec] of Object.entries(fields)) {
+        if (spec.type === 'bool') {
+          const box = el('input', { type: 'checkbox', name });
+          box.checked = !!current[name];
+          inputs[name] = () => box.checked;
+          box.addEventListener('change', () => {
+            current[name] = box.checked;
+            field.configure(current);
+          });
+          form.appendChild(el('label', { class: 'check wide-field' }, [
+            box,
+            el('span', { text: spec.label }),
+            el('span', { class: 'row-sub', text: `— ${spec.hint}` }),
+          ]));
+          continue;
+        }
+
+        const range = el('input', {
+          type: 'range', name,
+          min: spec.min, max: spec.max,
+          step: spec.step || 1,
+          value: current[name],
+        });
+        const readout = el('span', { class: 'viz-value', text: String(current[name]) });
+
+        inputs[name] = () => Number(range.value);
+        range.addEventListener('input', () => {
+          current[name] = Number(range.value);
+          readout.textContent = range.value;
+          field.configure(current);
+        });
+
+        form.appendChild(field2(`${spec.label} — ${spec.hint}`, el('div', { class: 'form-row' }, [range, readout])));
+      }
+
+      form.appendChild(el('div', { class: 'form-actions' }, [
+        el('button', { type: 'submit', class: 'roomy', text: 'save' }),
+        el('button', {
+          type: 'button', class: 'roomy', text: 'back to defaults',
+          onclick: guard(async () => {
+            await api('/admin/viz', { method: 'PATCH', body: window.__viz.VIZ_DEFAULTS });
+            toast('back to defaults');
+            show('visualizer');
+          }),
+        }),
+      ]));
+
+      form.addEventListener('submit', guard(async (e) => {
+        e.preventDefault();
+        const body = {};
+        for (const name of Object.keys(fields)) body[name] = inputs[name]();
+        await api('/admin/viz', { method: 'PATCH', body });
+        toast('saved');
+      }));
+
+      into.appendChild(form);
+      into.appendChild(el('p', { class: 'row-sub', text: 'the preview runs on made-up music so you can see the character without loading a track.' }));
+    },
+  };
+
+  // wie field(), nur ohne den namenskonflikt mit der partikel-variable
+  const field2 = (label, node) =>
+    el('label', { class: 'field wide-field' }, [el('span', { text: label }), node]);
+
+  // wird gesetzt, solange die vorschau laeuft
+  let stopPreview = null;
+
+  /* =====================================================================
      abschnitt: splashes
      ===================================================================== */
 
@@ -1303,9 +1420,13 @@
      ===================================================================== */
 
   const SECTIONS = { posts: POSTS, categories: CATEGORIES, layout: LAYOUT, shoutouts: SHOUTOUTS,
+                     visualizer: VISUALIZER,
                      pages: PAGES, splashes: SPLASHES, account: ACCOUNT };
 
   const show = guard(async (name) => {
+    // eine laufende vorschau anhalten, sonst zeichnet sie im hintergrund weiter
+    if (stopPreview) { stopPreview(); stopPreview = null; }
+
     const section = SECTIONS[name] || POSTS;
     nav.querySelectorAll('.chip').forEach((c) =>
       c.setAttribute('aria-pressed', String(c.dataset.section === name)));

@@ -16,6 +16,7 @@ import { POST_SIZES, listCategories } from '../lib/posts.js';
 import { PAGE_LAYOUTS } from '../lib/pages.js';
 import { SHOUTOUT_KINDS } from '../lib/shoutouts.js';
 import * as layout from '../lib/layout.js';
+import { getViz, setViz, VIZ_FIELDS } from '../lib/settings.js';
 import * as store from '../lib/write.js';
 import { BadRequest, str, oneOf, bool, int, intList, dateTime, url, youtubeId } from '../lib/validate.js';
 import { makePoster, makeThumb, ffmpegAvailable } from '../lib/poster.js';
@@ -230,6 +231,16 @@ admin.get('/upload/limits', async (req, res) => {
     posters: await ffmpegAvailable(),
   });
 });
+
+/* =======================================================================
+   aussehen des partikelfelds
+   ======================================================================= */
+
+admin.get('/viz', (req, res) => res.json({ viz: getViz(), fields: VIZ_FIELDS }));
+
+// die pruefung der werte steckt in setViz — was nicht passt, faellt auf
+// den standard zurueck, statt eine kaputte einstellung zu speichern
+admin.patch('/viz', (req, res) => res.json({ viz: setViz(req.body || {}) }));
 
 /* =======================================================================
    anordnung des portfolios

@@ -22,6 +22,7 @@
       <button class="chip" data-section="layout" role="tab">layout</button>
       <button class="chip" data-section="shoutouts" role="tab">shoutouts</button>
       <button class="chip" data-section="pages" role="tab">pages</button>
+      <button class="chip" data-section="visualizer" role="tab">visualizer</button>
       <button class="chip" data-section="splashes" role="tab">splashes</button>
       <button class="chip" data-section="account" role="tab">account</button>
     </nav>
@@ -40,6 +41,9 @@
   <!-- kurze rueckmeldungen nach dem speichern -->
   <div id="toast" role="status" aria-live="polite"></div>
 
+  <!-- die vorschau im visualizer-abschnitt benutzt dieselbe zeichenroutine
+       wie die seite selbst -->
+  <script src="/js/audioviz.js" defer></script>
   <script src="/admin/admin.js" defer></script>
 </body>
 </html>

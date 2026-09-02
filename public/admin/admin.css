@@ -383,3 +383,23 @@ body.admin .form { margin: 0; }
 
 .lay-post .row-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lay-post:last-of-type { border-bottom: none; }
+
+/*--- vorschau des partikelfelds ---*/
+.viz-preview {
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 5 / 2;
+    display: block;
+    border: 1.5px solid var(--altbgclr);
+    background-color: var(--bgclr);
+    margin-bottom: 1.2rem;
+}
+
+.viz-value {
+    flex: 0 0 3.5rem;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+}
+
+.form-row input[type="range"] { flex: 1 1 auto; }

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { listPosts, getPost, listCategories, neighbours, publicLayout, POST_SIZES } from '../lib/posts.js';
 import { getPage, getPageGroup, navEntries } from '../lib/pages.js';
 import { activeSplashes } from '../lib/splashes.js';
+import { getViz } from '../lib/settings.js';
 import { listShoutouts, shoutoutKindsInUse } from '../lib/shoutouts.js';
 
 export const api = Router();
@@ -41,6 +42,10 @@ api.get('/posts/:slug', cache(30), (req, res) => {
   if (!post) return res.status(404).json({ error: 'not found' });
   res.json({ post, ...neighbours(post.slug) });
 });
+
+// --- aussehen des partikelfelds ---------------------------------------------
+// gilt fuer die ganze seite, nicht je audiodatei
+api.get('/viz', cache(60), (req, res) => res.json({ viz: getViz() }));
 
 // --- navigation -------------------------------------------------------------
 // jede seite holt sich ihre menuepunkte hierueber, statt sie im html zu haben
