@@ -1,6 +1,6 @@
 // oeffentliche, lesende api. alles was hier raus geht ist bereits veroeffentlicht.
 import { Router } from 'express';
-import { listPosts, getPost, listCategories, neighbours, POST_SIZES } from '../lib/posts.js';
+import { listPosts, getPost, listCategories, neighbours, publicLayout, POST_SIZES } from '../lib/posts.js';
 import { getPage, getPageGroup, navEntries } from '../lib/pages.js';
 import { activeSplashes } from '../lib/splashes.js';
 import { listShoutouts, shoutoutKindsInUse } from '../lib/shoutouts.js';
@@ -28,7 +28,8 @@ api.get('/posts', cache(30), (req, res) => {
     posts = posts.filter((p) => p.categories.some((c) => wanted.includes(c.slug)));
   }
 
-  res.json({ posts, sizes: POST_SIZES });
+  // die anordnung kommt mit: zeilen mit spalten, spalten mit post-ids
+  res.json({ posts, layout: publicLayout(), sizes: POST_SIZES });
 });
 
 api.get('/categories', cache(60), (req, res) => {

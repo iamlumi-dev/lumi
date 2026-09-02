@@ -22,6 +22,9 @@ const ADDED_COLUMNS = [
   ['pages', 'position',  'INTEGER NOT NULL DEFAULT 0'],
   ['links', 'note',      "TEXT NOT NULL DEFAULT ''"],
   ['media', 'thumb',     'TEXT'],
+  // anordnung des portfolios
+  ['posts', 'cell_id',   'INTEGER REFERENCES grid_cells(id) ON DELETE SET NULL'],
+  ['posts', 'slot',      'INTEGER NOT NULL DEFAULT 0'],
   // zweiter faktor
   ['users', 'totp_secret',    'TEXT'],
   ['users', 'totp_pending',   'TEXT'],

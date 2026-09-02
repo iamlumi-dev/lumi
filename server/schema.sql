@@ -32,7 +32,12 @@ CREATE TABLE IF NOT EXISTS posts (
   pinned       INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0,1)),
   published_at TEXT    NOT NULL DEFAULT (datetime('now')),
   created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+
+  -- anordnung: in welcher spalte, an welcher stelle darin.
+  -- NULL = noch nicht eingeordnet, haengt hinten dran.
+  cell_id      INTEGER REFERENCES grid_cells(id) ON DELETE SET NULL,
+  slot         INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_published ON posts (published, published_at DESC);
@@ -55,6 +60,36 @@ CREATE TABLE IF NOT EXISTS media (
 );
 
 CREATE INDEX IF NOT EXISTS idx_media_post ON media (post_id, position);
+
+-- ---- anordnung des portfolios ---------------------------------------------
+-- WARUM SO: in einem zellenraster kann eine zelle leer bleiben — daraus
+-- entstehen die luecken. hier gibt es keine zellen.
+--
+-- eine ZEILE teilt ihre breite unter ihren SPALTEN auf, gewichtet nach
+-- weight; die summe ist immer die ganze breite. eine SPALTE teilt ihre
+-- hoehe unter ihren kacheln auf; auch das ist immer die ganze hoehe.
+-- es gibt also keinen platz, der zu niemandem gehoert. eine luecke ist
+-- damit nicht "unwahrscheinlich", sondern nicht darstellbar.
+--
+-- posts ohne spalte (cell_id IS NULL) haengen hinten dran und werden
+-- selbsttaetig in zeilen einsortiert.
+
+CREATE TABLE IF NOT EXISTS grid_rows (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  position INTEGER NOT NULL DEFAULT 0,
+  -- hoehe der zeile in einheiten: 1 flach, 2 normal, 3 hoch
+  units    INTEGER NOT NULL DEFAULT 2 CHECK (units BETWEEN 1 AND 4)
+);
+
+CREATE TABLE IF NOT EXISTS grid_cells (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  row_id   INTEGER NOT NULL REFERENCES grid_rows(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  -- anteil an der zeilenbreite, relativ zu den anderen spalten der zeile
+  weight   INTEGER NOT NULL DEFAULT 1 CHECK (weight BETWEEN 1 AND 8)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cells_row ON grid_cells (row_id, position);
 
 -- ---- verknuepfung post <-> kategorie ---------------------------------------
 CREATE TABLE IF NOT EXISTS post_categories (

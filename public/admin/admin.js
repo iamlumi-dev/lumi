@@ -149,8 +149,7 @@
           el('div', { class: 'row-main' }, [
             el('div', { class: 'row-title', text: post.title }),
             el('div', { class: 'row-sub', text:
-              [post.size,
-               post.published ? 'published' : 'draft',
+              [post.published ? 'published' : 'draft',
                post.pinned ? 'pinned' : null,
                `${post.mediaCount} media`,
                post.publishedAt.slice(0, 10),
@@ -188,8 +187,10 @@
       textarea('summary', post.summary, 2), true));
     form.appendChild(field('body — the text on the detail page. blank line = new paragraph',
       textarea('body', post.body, 8), true));
-    form.appendChild(field('tile size', select('size',
-      sizes.map((s) => ({ value: s, label: s })), post.size)));
+    // die kachelgroesse kommt nicht mehr vom post, sondern aus der
+    // anordnung — dort ist sie ein verhaeltnis und kann keine luecke machen
+    form.appendChild(el('p', { class: 'row-sub wide-field',
+      text: 'size and position are set under "layout" — a post no longer carries its own size.' }));
 
     // kategorien als umschaltbare chips
     const picked = new Set(post.categories);
@@ -530,6 +531,228 @@
       ]));
     },
   };
+
+  /* =====================================================================
+     abschnitt: anordnung des portfolios
+     =====================================================================
+     eine zeile verteilt ihre breite unter ihren spalten, eine spalte ihre
+     hoehe unter ihren kacheln. beides geht immer voll auf — deshalb kann
+     hier keine anordnung entstehen, die eine luecke hat. das gewicht einer
+     spalte ist ein verhaeltnis, kein wunsch: 1 neben 2 ist immer genau
+     halb so breit.                                                        */
+
+  const LAYOUT = {
+    title: 'layout',
+    async render(into) {
+      const data = await api('/admin/layout');
+
+      into.appendChild(el('h2', { text: 'layout' }));
+      into.appendChild(el('p', { class: 'dim', text: 'a row splits its width between its columns, a column splits its height between its tiles. both always add up to the whole — so an arrangement with a gap in it cannot be built here. weights are ratios: a 1 next to a 2 is exactly half as wide.' }));
+
+      into.appendChild(el('div', { class: 'toolbar' }, [
+        el('button', { type: 'button', class: 'roomy', text: 'add row',
+          onclick: guard(async () => {
+            await api('/admin/layout/rows', { method: 'POST', body: { units: 2 } });
+            show('layout');
+          }) }),
+        el('button', { type: 'button', class: 'roomy', text: 'arrange automatically',
+          onclick: guard(async () => {
+            if (!confirmed('rebuild the arrangement? two tiles per row, all the same size. your posts are not touched.')) return;
+            await api('/admin/layout/auto', { method: 'POST' });
+            toast('rearranged');
+            show('layout');
+          }) }),
+        el('span', { class: 'dim', text: `${data.rows.length} row${data.rows.length === 1 ? '' : 's'}, ${data.loose.length} not placed` }),
+      ]));
+
+      data.rows.forEach((row, i) => into.appendChild(rowBox(row, i, data)));
+
+      /* ---- posts, die noch nirgends stecken ---- */
+      into.appendChild(el('h3', { text: 'not placed yet' }));
+      if (!data.loose.length) {
+        into.appendChild(el('p', { class: 'dim', text: 'everything is placed.' }));
+      } else {
+        into.appendChild(el('p', { class: 'dim', text: 'these appear at the end of the page, two per row, until you place them.' }));
+        const rows = el('div', { class: 'rows' });
+        for (const post of data.loose) {
+          rows.appendChild(el('div', { class: `row${post.published ? '' : ' muted'}` }, [
+            el('div', { class: 'row-main' }, [
+              el('div', { class: 'row-title', text: post.title }),
+              post.published ? null : el('div', { class: 'row-sub', text: 'draft' }),
+            ]),
+            placeInto(post, data),
+          ]));
+        }
+        into.appendChild(rows);
+      }
+    },
+  };
+
+  /* ---- eine zeile ---------------------------------------------------- */
+
+  function rowBox(row, index, data) {
+    const box = el('div', { class: 'lay-row' });
+
+    const units = select('units', [
+      { value: '1', label: 'flat' },
+      { value: '2', label: 'normal' },
+      { value: '3', label: 'tall' },
+      { value: '4', label: 'very tall' },
+    ], String(row.units));
+    units.addEventListener('change', guard(async () => {
+      await api(`/admin/layout/rows/${row.id}`, { method: 'PATCH', body: { units: Number(units.value) } });
+      show('layout');
+    }));
+
+    const moveRow = guard(async (delta) => {
+      const ids = data.rows.map((r) => r.id);
+      const to = index + delta;
+      if (to < 0 || to >= ids.length) return;
+      [ids[index], ids[to]] = [ids[to], ids[index]];
+      await api('/admin/layout/rows/order', { method: 'POST', body: { ids } });
+      show('layout');
+    });
+
+    box.appendChild(el('div', { class: 'lay-head' }, [
+      el('span', { class: 'row-title', text: `row ${index + 1}` }),
+      units,
+      el('div', { class: 'row-actions' }, [
+        el('button', { type: 'button', class: 'mini', text: '↑', onclick: () => moveRow(-1) }),
+        el('button', { type: 'button', class: 'mini', text: '↓', onclick: () => moveRow(1) }),
+        el('button', { type: 'button', class: 'mini', text: 'add column',
+          onclick: guard(async () => {
+            await api(`/admin/layout/rows/${row.id}/cells`, { method: 'POST', body: { weight: 1 } });
+            show('layout');
+          }) }),
+        el('button', { type: 'button', class: 'mini', text: 'remove row',
+          onclick: guard(async () => {
+            if (!confirmed('remove this row? its posts go back to "not placed".')) return;
+            await api(`/admin/layout/rows/${row.id}`, { method: 'DELETE' });
+            show('layout');
+          }) }),
+      ]),
+    ]));
+
+    // vorschau: so breit werden die spalten wirklich
+    const preview = el('div', { class: 'lay-preview' });
+    preview.style.setProperty('--units', row.units);
+    for (const cell of row.cells) {
+      const bar = el('div', { class: 'lay-bar' });
+      bar.style.setProperty('--weight', cell.weight);
+      bar.appendChild(el('span', { text: cell.posts.length ? String(cell.posts.length) : '—' }));
+      preview.appendChild(bar);
+    }
+    if (!row.cells.length) preview.appendChild(el('div', { class: 'lay-bar empty' }, [el('span', { text: 'no columns' })]));
+    box.appendChild(preview);
+
+    const cells = el('div', { class: 'lay-cells' });
+    row.cells.forEach((cell, ci) => cells.appendChild(cellBox(cell, ci, row, data)));
+    box.appendChild(cells);
+
+    return box;
+  }
+
+  /* ---- eine spalte ---------------------------------------------------- */
+
+  function cellBox(cell, index, row, data) {
+    const box = el('div', { class: 'lay-cell' });
+
+    const weight = select('weight',
+      [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `width ${n}` })),
+      String(cell.weight));
+    weight.addEventListener('change', guard(async () => {
+      await api(`/admin/layout/cells/${cell.id}`, { method: 'PATCH', body: { weight: Number(weight.value) } });
+      show('layout');
+    }));
+
+    const moveCell = guard(async (delta) => {
+      const ids = row.cells.map((c) => c.id);
+      const to = index + delta;
+      if (to < 0 || to >= ids.length) return;
+      [ids[index], ids[to]] = [ids[to], ids[index]];
+      await api(`/admin/layout/rows/${row.id}/cells/order`, { method: 'POST', body: { ids } });
+      show('layout');
+    });
+
+    box.appendChild(el('div', { class: 'lay-head' }, [
+      weight,
+      el('div', { class: 'row-actions' }, [
+        el('button', { type: 'button', class: 'mini', text: '←', onclick: () => moveCell(-1) }),
+        el('button', { type: 'button', class: 'mini', text: '→', onclick: () => moveCell(1) }),
+        el('button', { type: 'button', class: 'mini', text: '×', title: 'remove column',
+          onclick: guard(async () => {
+            await api(`/admin/layout/cells/${cell.id}`, { method: 'DELETE' });
+            show('layout');
+          }) }),
+      ]),
+    ]));
+
+    // kacheln in dieser spalte, uebereinander
+    cell.posts.forEach((post, pi) => {
+      const movePost = guard(async (delta) => {
+        const ids = cell.posts.map((p) => p.id);
+        const to = pi + delta;
+        if (to < 0 || to >= ids.length) return;
+        [ids[pi], ids[to]] = [ids[to], ids[pi]];
+        await api(`/admin/layout/cells/${cell.id}/order`, { method: 'POST', body: { ids } });
+        show('layout');
+      });
+
+      box.appendChild(el('div', { class: `lay-post${post.published ? '' : ' muted'}` }, [
+        el('span', { class: 'row-main', text: post.title }),
+        el('div', { class: 'row-actions' }, [
+          el('button', { type: 'button', class: 'mini', text: '↑', onclick: () => movePost(-1) }),
+          el('button', { type: 'button', class: 'mini', text: '↓', onclick: () => movePost(1) }),
+          el('button', { type: 'button', class: 'mini', text: '×', title: 'take out',
+            onclick: guard(async () => {
+              await api('/admin/layout/place', { method: 'POST', body: { postId: post.id, cellId: null } });
+              show('layout');
+            }) }),
+        ]),
+      ]));
+    });
+
+    if (!cell.posts.length) box.appendChild(el('p', { class: 'dim', text: 'empty — an empty column is dropped when the page is drawn' }));
+
+    // einen noch nicht platzierten post hierher legen
+    if (data.loose.length) box.appendChild(pickLoose(cell.id, data));
+    return box;
+  }
+
+  // auswahl "welchen post hierher"
+  function pickLoose(cellId, data) {
+    const pick = select('post',
+      [{ value: '', label: '+ add a post …' },
+       ...data.loose.map((p) => ({ value: String(p.id), label: p.title }))], '');
+    pick.addEventListener('change', guard(async () => {
+      if (!pick.value) return;
+      await api('/admin/layout/place', { method: 'POST', body: { postId: Number(pick.value), cellId } });
+      show('layout');
+    }));
+    return pick;
+  }
+
+  // auswahl "in welche spalte" — fuer die liste der nicht platzierten
+  function placeInto(post, data) {
+    const options = [{ value: '', label: 'place in …' }];
+    data.rows.forEach((row, ri) => {
+      row.cells.forEach((cell, ci) => {
+        options.push({ value: String(cell.id), label: `row ${ri + 1}, column ${ci + 1}` });
+      });
+    });
+
+    const pick = select('cell', options, '');
+    pick.addEventListener('change', guard(async () => {
+      if (!pick.value) return;
+      await api('/admin/layout/place', { method: 'POST', body: { postId: post.id, cellId: Number(pick.value) } });
+      show('layout');
+    }));
+
+    if (options.length === 1) {
+      return el('span', { class: 'row-sub', text: 'add a row first' });
+    }
+    return pick;
+  }
 
   /* =====================================================================
      abschnitt: shoutouts
@@ -1078,7 +1301,7 @@
      rahmen
      ===================================================================== */
 
-  const SECTIONS = { posts: POSTS, categories: CATEGORIES, shoutouts: SHOUTOUTS,
+  const SECTIONS = { posts: POSTS, categories: CATEGORIES, layout: LAYOUT, shoutouts: SHOUTOUTS,
                      pages: PAGES, splashes: SPLASHES, account: ACCOUNT };
 
   const show = guard(async (name) => {

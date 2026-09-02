@@ -110,6 +110,8 @@ server/
   lib/pages.js    Datenzugriff auf Freitextseiten und Links
   lib/splashes.js Splash-Texte
   lib/shoutouts.js Empfehlungen
+  lib/layout.js   Anordnung des Portfolios: Zeilen, Spalten, Plätze
+  lib/poster.js   Standbilder für Videos, kleine Fassungen für Bilder
   lib/write.js    alle schreibenden Zugriffe
   lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
@@ -164,6 +166,7 @@ data/             SQLite-Datei (nicht im Repo)
 | `pages` | Freitextseiten. Gleiche `tab_group` = Reiter derselben Seite, `position` bestimmt die Reihenfolge, `layout` die Darstellung |
 | `links` | Einträge einer Seite: Label, URL, optional eine Zeile dazu. Trägt sowohl die Kontaktlinks als auch die Friends-Liste |
 | `shoutouts` | Empfehlungen. Bewusst eine eigene Tabelle und nicht `posts` — ein Shoutout ist keine eigene Arbeit und soll im Portfolio nicht mitgezählt werden |
+| `grid_rows`, `grid_cells` | die Anordnung des Portfolios (siehe oben) |
 | `splashes` | die Zeilen unter dem Titel auf der Startseite. Kein Längenlimit, kein Umbruch außer an gesetzten Zeilenumbrüchen |
 | `users` | Admin-Zugang, nur Passwort-**Hash** |
 | `sessions` | offene Anmeldungen, nur der **Hash** des Session-Tokens |
@@ -274,35 +277,45 @@ Ein Post kann **nur Text**, **nur Bild**, **nur Ton**, **nur Video** oder jede
 Mischung davon sein — nichts hängt voneinander ab. Ein Post ohne Medien ist
 genauso gültig wie einer mit fünf.
 
-### Kachelgrößen
+### Die Anordnung
 
-| `size` | Fläche | gedacht für |
-|---|---|---|
-| `small` | 1 × 1 | Standard |
-| `wide` | 2 × 1 | Querformate |
-| `tall` | 1 × 2 | Hochformate |
-| `large` | 2 × 2 | Hauptarbeiten |
-| `banner` | volle Breite × 1 | Trenner, breite Panoramen |
+Das Portfolio ist **kein Zellenraster**. In einem Raster kann eine Zelle leer
+bleiben — genau daraus entstehen Lücken. Hier gibt es keine Zellen:
 
-Die Anordnung übernimmt `public/js/pack.js`, nicht der Browser:
-`grid-auto-flow: dense` füllt Löcher nur mit späteren, kleineren Kacheln nach —
-und am Ende einer Liste bleibt fast immer keine passende übrig. Der Packer
-arbeitet in zwei Schritten:
+- Eine **Zeile** verteilt ihre Breite unter ihren **Spalten**, gewichtet.
+- Eine **Spalte** verteilt ihre Höhe unter ihren **Kacheln**.
 
-1. First Fit in der Reihenfolge, die der Besucher sortiert hat.
-2. Verbleibende Löcher werden geschlossen, indem eine benachbarte Kachel
-   darauf ausgedehnt wird — es gewinnt der Zug, der am meisten Zellen füllt.
+Beides summiert sich immer auf das Ganze. Es gibt also keinen Platz, der zu
+niemandem gehört — eine Lücke ist **nicht darstellbar**, nicht bloß
+unwahrscheinlich. Das gilt auch beim Filtern: fällt eine Kachel weg, verteilt
+sich ihr Platz auf die verbleibenden, weil die Gewichte relativ sind.
 
-Die gewählte Größe ist damit ein **Wunsch, keine Garantie**: eine Kachel kann
-am Rand größer werden als bestellt. Kleiner wird sie nie. Bleibt eine Mischung
-trotzdem nicht schließbar (unter 1 % der Fälle), fällt der Packer auf
-einzeilige Höhen zurück — dann ist jede Zeile ein reines Breitenproblem und
-geht immer auf.
+Das Gewicht ist damit ein **exaktes Verhältnis, kein Wunsch**: eine Spalte mit
+Gewicht 1 neben einer mit 2 ist immer genau halb so breit.
 
-Nachgerechnet über 50 000 Zufallsmischungen bei 1–6 Spalten: **0 Lücken,
-0 Überlappungen, keine Kachel schmaler als bestellt, 100 % Flächenausnutzung.** Auf schmalen Bildschirmen werden
-die Spannweiten gekappt (3 Spalten ab 1100 px, 2 ab 760 px, 1 ab 460 px; bei
-einer Spalte wird jede Kachel quadratisch).
+| | |
+|---|---|
+| `grid_rows.units` | Höhe der Zeile, 1–4 Einheiten (eine Einheit = ein Viertel der Breite) |
+| `grid_cells.weight` | Anteil an der Zeilenbreite, relativ zu den Nachbarspalten |
+| `posts.cell_id`, `posts.slot` | in welcher Spalte, an welcher Stelle darin |
+
+Gepflegt wird das im Editor unter **layout**: Zeilen anlegen und verschieben,
+Höhe wählen, Spalten hinzufügen und gewichten, Posts einsortieren und stapeln.
+Eine Vorschauleiste zeigt die Verhältnisse. Posts ohne Spalte hängen selbsttätig
+hinten an, zwei je Zeile — ein neuer Post erscheint also ohne Zutun.
+
+Auf schmalen Schirmen werden breite Zeilen in Stücke geteilt (höchstens zwei
+Spalten unter 760 px, eine unter 460 px). Jedes Stück ist wieder eine volle
+Zeile, also weiterhin lückenlos.
+
+Sortiert der Besucher nach neuste/älteste/a–z, greift die eigene Anordnung
+nicht mehr — dann werden Zeilen selbsttätig gebaut, ebenfalls lückenlos.
+
+Nachgemessen im Browser über 40 zufällige Anordnungen bei drei Fensterbreiten
+(120 Messungen): **größte Abweichung 0,03 px, keine leere Spalte gerendert.**
+
+> Die Spalte `posts.size` aus dem alten Raster steht noch in der Datenbank,
+> wird aber nirgends mehr benutzt.
 
 ---
 

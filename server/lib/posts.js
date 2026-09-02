@@ -6,14 +6,16 @@ export const POST_SIZES = ['small', 'wide', 'tall', 'large', 'banner'];
 export const MEDIA_KINDS = ['image', 'video', 'audio'];
 
 const selectPosts = db.prepare(`
-  SELECT id, slug, title, summary, body, size, pinned, published, published_at
+  SELECT id, slug, title, summary, body, size, pinned, published, published_at,
+         cell_id, slot
   FROM posts
   WHERE published = 1
   ORDER BY pinned DESC, published_at DESC, id DESC
 `);
 
 const selectPostBySlug = db.prepare(`
-  SELECT id, slug, title, summary, body, size, pinned, published, published_at
+  SELECT id, slug, title, summary, body, size, pinned, published, published_at,
+         cell_id, slot
   FROM posts
   WHERE slug = ? AND published = 1
 `);
@@ -73,6 +75,9 @@ function hydrate(row) {
     body: row.body,
     size: row.size,
     pinned: !!row.pinned,
+    // anordnung: in welcher spalte der post steckt und an welcher stelle
+    cellId: row.cell_id || null,
+    slot: row.slot || 0,
     publishedAt: row.published_at,
     categories: selectCategoriesForPost.all(row.id),
     media,
@@ -108,4 +113,45 @@ export function neighbours(slug) {
   if (i === -1) return { prev: null, next: null };
   const pick = (row) => (row ? { slug: row.slug, title: row.title } : null);
   return { prev: pick(all[i - 1]), next: pick(all[i + 1]) };
+}
+
+/* ---- anordnung fuer das frontend -----------------------------------------
+   geliefert werden nur ids. das frontend filtert die post-liste ohnehin
+   selbst und laesst dann die fehlenden aus den spalten fallen; weil die
+   gewichte relativ sind, bleibt jede zeile dabei automatisch voll.        */
+
+export function publicLayout() {
+  const posts = listPosts();
+  const byId = new Map(posts.map((p) => [p.id, p]));
+
+  const rows = db.prepare('SELECT id, units FROM grid_rows ORDER BY position ASC, id ASC').all();
+  const cells = db.prepare(
+    'SELECT id, row_id, weight FROM grid_cells ORDER BY position ASC, id ASC'
+  ).all();
+
+  const inCell = new Map(cells.map((c) => [c.id, []]));
+  const placed = new Set();
+  for (const post of posts) {
+    if (post.cellId && inCell.has(post.cellId)) {
+      inCell.get(post.cellId).push(post);
+      placed.add(post.id);
+    }
+  }
+  for (const list of inCell.values()) list.sort((a, b) => a.slot - b.slot || a.id - b.id);
+
+  const cellsOfRow = new Map(rows.map((r) => [r.id, []]));
+  for (const cell of cells) {
+    const list = inCell.get(cell.id);
+    if (list.length) {
+      cellsOfRow.get(cell.row_id)?.push({ weight: cell.weight, posts: list.map((p) => p.id) });
+    }
+  }
+
+  return {
+    rows: rows
+      .map((r) => ({ units: r.units, cells: cellsOfRow.get(r.id) || [] }))
+      .filter((r) => r.cells.length),
+    // noch nicht eingeordnet — das frontend haengt sie selbsttaetig an
+    loose: posts.filter((p) => !placed.has(p.id)).map((p) => p.id),
+  };
 }

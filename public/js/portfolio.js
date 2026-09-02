@@ -11,7 +11,8 @@
 
   let posts = [];
   let active = new Set();          // ausgewaehlte kategorie-slugs (leer = alle)
-  let sort = 'newest';
+  let sort = 'arranged';           // 'arranged' = die eigene anordnung
+  let layoutData = null;
   const tiles = new Map();         // slug -> <li>
 
   /* ---- daten holen ------------------------------------------------------ */
@@ -23,12 +24,14 @@
       ]);
       if (!postsRes.ok || !catsRes.ok) throw new Error('api');
 
-      posts = (await postsRes.json()).posts;
+      const postsData = await postsRes.json();
+      posts = postsData.posts;
+      layoutData = postsData.layout || null;
       const categories = (await catsRes.json()).categories;
 
       readUrl(categories);
       renderFilters(categories);
-      renderTiles();
+      buildTiles();
       apply(false);
     } catch (err) {
       statusEl.textContent = 'could not load the work … try reloading';
@@ -48,13 +51,13 @@
       .forEach((s) => active.add(s));
 
     const s = params.get('sort');
-    if (['newest', 'oldest', 'title'].includes(s)) sort = s;
+    if (['arranged', 'newest', 'oldest', 'title'].includes(s)) sort = s;
   }
 
   function writeUrl() {
     const params = new URLSearchParams();
     if (active.size) params.set('c', [...active].join(','));
-    if (sort !== 'newest') params.set('sort', sort);
+    if (sort !== 'arranged') params.set('sort', sort);
     const qs = params.toString();
     history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
   }
@@ -147,7 +150,7 @@
 
   function tileNode(post) {
     const li = document.createElement('li');
-    li.className = `tile size-${post.size}`;
+    li.className = 'tile';
     li.dataset.slug = post.slug;
 
     const link = document.createElement('a');
@@ -207,14 +210,9 @@
     return li;
   }
 
-  function renderTiles() {
-    const frag = document.createDocumentFragment();
-    for (const post of posts) {
-      const node = tileNode(post);
-      tiles.set(post.slug, node);
-      frag.appendChild(node);
-    }
-    grid.appendChild(frag);
+  // kacheln einmal bauen und behalten; einsortiert werden sie in renderRows
+  function buildTiles() {
+    for (const post of posts) tiles.set(post.slug, tileNode(post));
   }
 
   /* ---- hover: focus/dim + video anspielen -------------------------------- */
@@ -245,57 +243,110 @@
   }
 
   const comparators = {
+    // 'arranged' sortiert nicht — die reihenfolge steckt in den zeilen
+    arranged: () => 0,
     newest: (a, b) =>
       Number(b.pinned) - Number(a.pinned) || b.publishedAt.localeCompare(a.publishedAt),
     oldest: (a, b) => a.publishedAt.localeCompare(b.publishedAt),
     title:  (a, b) => a.title.localeCompare(b.title),
   };
 
-  // wie viele spalten das raster gerade hat — steht im stylesheet und
-  // aendert sich mit der fensterbreite
-  function countColumns() {
-    const value = getComputedStyle(grid).gridTemplateColumns;
-    return value.split(' ').filter(Boolean).length || 1;
+  /* =====================================================================
+     anordnung
+     =====================================================================
+     eine zeile teilt ihre breite unter ihren spalten auf (flex-grow nach
+     gewicht), eine spalte ihre hoehe unter ihren kacheln. beides summiert
+     sich immer auf das ganze — es kann also kein platz uebrig bleiben.
+     eine luecke ist hier nicht darstellbar, nicht bloss unwahrscheinlich.
+
+     das gilt auch beim filtern: faellt eine kachel weg, verteilt sich ihr
+     platz auf die verbleibenden, weil die gewichte relativ sind.          */
+
+  // wie viele spalten eine zeile hoechstens haben darf. auf schmalen
+  // schirmen werden breitere zeilen in stuecke geteilt — jedes stueck ist
+  // dann wieder eine volle zeile.
+  function maxCellsPerRow() {
+    const w = window.innerWidth;
+    if (w < 460) return 1;
+    if (w < 760) return 2;
+    return 4;
   }
 
-  /* jede kachel bekommt ihren platz ausdruecklich zugewiesen, statt ihn von
-     "grid-auto-flow: dense" zu bekommen. dense fuellt loecher nur mit
-     spaeteren kleineren kacheln nach — am ende einer liste bleibt fast immer
-     eines stehen. der packer in pack.js kann keines stehen lassen. */
-  function layout(visible) {
-    const cols = countColumns();
-    const placed = window.__pack
-      ? window.__pack.pack(visible.map((p) => ({ size: p.size })), cols)
-      : null;
+  function chunk(list, size) {
+    const out = [];
+    for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+    return out;
+  }
 
-    visible.forEach((post, i) => {
-      const node = tiles.get(post.slug);
-      const spot = placed && placed[i];
-      if (!spot) {
-        // ohne packer bleibt das verhalten aus dem stylesheet
-        node.style.gridColumn = '';
-        node.style.gridRow = '';
-        return;
+  // zeilen aus einer schlichten liste bauen — fuer posts, die noch nicht
+  // eingeordnet sind, und fuer jede sortierung ausser der eigenen
+  function autoRows(list, perRow) {
+    return chunk(list, Math.min(2, perRow)).map((group) => ({
+      units: 2,
+      cells: group.map((post) => ({ weight: 1, posts: [post] })),
+    }));
+  }
+
+  function buildRows(visible) {
+    const perRow = maxCellsPerRow();
+    const visibleIds = new Set(visible.map((p) => p.id));
+    const byId = new Map(posts.map((p) => [p.id, p]));
+
+    // andere sortierungen ordnen die posts neu — dann greift die eigene
+    // anordnung nicht mehr, und es wird selbsttaetig gebaut
+    if (sort !== 'arranged' || !layoutData) return autoRows(visible, perRow);
+
+    const rows = [];
+    for (const row of layoutData.rows) {
+      const cells = row.cells
+        .map((cell) => ({
+          weight: cell.weight,
+          posts: cell.posts.filter((id) => visibleIds.has(id)).map((id) => byId.get(id)),
+        }))
+        // eine spalte ohne kachel waere genau die luecke, die es nicht geben soll
+        .filter((cell) => cell.posts.length);
+
+      if (!cells.length) continue;
+      for (const part of chunk(cells, perRow)) rows.push({ units: row.units, cells: part });
+    }
+
+    // was noch nicht eingeordnet ist, haengt hinten dran
+    const loose = (layoutData.loose || [])
+      .map((id) => byId.get(id))
+      .filter((post) => post && visibleIds.has(post.id));
+    rows.push(...autoRows(loose, perRow));
+    return rows;
+  }
+
+  function renderRows(visible) {
+    const frag = document.createDocumentFragment();
+
+    for (const row of buildRows(visible)) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'grid-row';
+      rowEl.style.setProperty('--units', row.units);
+
+      for (const cell of row.cells) {
+        const cellEl = document.createElement('div');
+        cellEl.className = 'grid-cell';
+        cellEl.style.setProperty('--weight', cell.weight);
+        for (const post of cell.posts) cellEl.appendChild(tiles.get(post.slug));
+        rowEl.appendChild(cellEl);
       }
-      node.style.gridColumn = `${spot.c + 1} / span ${spot.w}`;
-      node.style.gridRow = `${spot.r + 1} / span ${spot.h}`;
-    });
+      frag.appendChild(rowEl);
+    }
+
+    grid.replaceChildren(frag);
   }
 
   let shown = [];
 
   function apply(animate) {
     const run = () => {
-      const visible = posts.filter(matches).sort(comparators[sort]);
+      const visible = posts.filter(matches).sort(comparators[sort] || (() => 0));
       shown = visible;
 
-      // reihenfolge im dom setzen; den platz vergibt danach der packer
-      for (const post of visible) grid.appendChild(tiles.get(post.slug));
-
-      const visibleSlugs = new Set(visible.map((p) => p.slug));
-      for (const [slug, node] of tiles) node.classList.toggle('hidden', !visibleSlugs.has(slug));
-
-      layout(visible);
+      renderRows(visible);
 
       emptyEl.hidden = visible.length > 0;
       statusEl.textContent =
@@ -315,11 +366,17 @@
     }
   }
 
-  // spaltenzahl haengt an der fensterbreite — nach dem umbruch neu packen
+  // wie viele spalten eine zeile vertraegt, haengt an der fensterbreite
   let resizeTimer;
+  let lastPerRow = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => layout(shown), 150);
+    resizeTimer = setTimeout(() => {
+      const perRow = maxCellsPerRow();
+      if (perRow === lastPerRow) return;
+      lastPerRow = perRow;
+      renderRows(shown);
+    }, 150);
   });
 
   load();

@@ -15,6 +15,7 @@ import { db } from '../db.js';
 import { POST_SIZES, listCategories } from '../lib/posts.js';
 import { PAGE_LAYOUTS } from '../lib/pages.js';
 import { SHOUTOUT_KINDS } from '../lib/shoutouts.js';
+import * as layout from '../lib/layout.js';
 import * as store from '../lib/write.js';
 import { BadRequest, str, oneOf, bool, int, intList, dateTime, url, youtubeId } from '../lib/validate.js';
 import { makePoster, makeThumb, ffmpegAvailable } from '../lib/poster.js';
@@ -223,6 +224,94 @@ admin.get('/upload/limits', async (req, res) => {
     posters: await ffmpegAvailable(),
   });
 });
+
+/* =======================================================================
+   anordnung des portfolios
+   ======================================================================= */
+
+const view = (res) => res.json(layout.adminLayout());
+
+admin.get('/layout', (req, res) => view(res));
+
+// --- zeilen ---
+admin.post('/layout/rows', handle((req, res) => {
+  layout.createRow(int(req.body?.units ?? 2, 'höhe', { min: layout.MIN_UNITS, max: layout.MAX_UNITS }));
+  view(res.status(201));
+}));
+
+admin.patch('/layout/rows/:id', handle((req, res) => {
+  const ok = layout.updateRow(
+    int(req.params.id, 'id'),
+    int(req.body?.units ?? 2, 'höhe', { min: layout.MIN_UNITS, max: layout.MAX_UNITS })
+  );
+  if (!ok) return res.status(404).json({ error: 'nicht gefunden' });
+  view(res);
+}));
+
+// die posts der zeile werden dabei nur frei, nie geloescht
+admin.delete('/layout/rows/:id', handle((req, res) => {
+  if (!layout.deleteRow(int(req.params.id, 'id'))) {
+    return res.status(404).json({ error: 'nicht gefunden' });
+  }
+  view(res);
+}));
+
+admin.post('/layout/rows/order', handle((req, res) => {
+  layout.reorderRows(intList(req.body?.ids || [], 'reihenfolge'));
+  view(res);
+}));
+
+// --- spalten ---
+admin.post('/layout/rows/:id/cells', handle((req, res) => {
+  layout.createCell(
+    int(req.params.id, 'id'),
+    int(req.body?.weight ?? 1, 'gewicht', { min: 1, max: layout.MAX_WEIGHT })
+  );
+  view(res.status(201));
+}));
+
+admin.patch('/layout/cells/:id', handle((req, res) => {
+  const ok = layout.updateCell(
+    int(req.params.id, 'id'),
+    int(req.body?.weight ?? 1, 'gewicht', { min: 1, max: layout.MAX_WEIGHT })
+  );
+  if (!ok) return res.status(404).json({ error: 'nicht gefunden' });
+  view(res);
+}));
+
+admin.delete('/layout/cells/:id', handle((req, res) => {
+  if (!layout.deleteCell(int(req.params.id, 'id'))) {
+    return res.status(404).json({ error: 'nicht gefunden' });
+  }
+  view(res);
+}));
+
+admin.post('/layout/rows/:id/cells/order', handle((req, res) => {
+  layout.reorderCells(int(req.params.id, 'id'), intList(req.body?.ids || [], 'reihenfolge'));
+  view(res);
+}));
+
+// --- posts einordnen ---
+admin.post('/layout/place', handle((req, res) => {
+  const postId = int(req.body?.postId, 'post');
+  const cellId = req.body?.cellId === null || req.body?.cellId === undefined
+    ? null
+    : int(req.body.cellId, 'spalte');
+  layout.placePost(postId, cellId);
+  view(res);
+}));
+
+admin.post('/layout/cells/:id/order', handle((req, res) => {
+  layout.reorderInCell(int(req.params.id, 'id'), intList(req.body?.ids || [], 'reihenfolge'));
+  view(res);
+}));
+
+// alles neu einsortieren: je post eine spalte, je zwei spalten eine zeile
+admin.post('/layout/auto', handle((req, res) => {
+  const ids = store.listAllPosts().map((p) => p.id);
+  layout.autoArrange(ids);
+  view(res);
+}));
 
 /* =======================================================================
    kategorien

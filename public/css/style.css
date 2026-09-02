@@ -235,41 +235,56 @@ body.portfolio footer p { margin-left: 0; }
     transition: opacity 0.3s ease-in-out;
 }
 
-/*=== PORTFOLIO — GRID ===*/
-/* der wrapper traegt die container-query-einheit, damit eine 1x1-kachel
-   exakt quadratisch wird — unabhaengig von der fensterbreite. */
+/*=== PORTFOLIO — ANORDNUNG ===*/
+/* WARUM ZEILEN UND KEIN RASTER:
+   in einem zellenraster kann eine zelle leer bleiben — daraus entstehen die
+   luecken. hier gibt es keine zellen. eine zeile verteilt ihre breite unter
+   ihren spalten (flex-grow nach gewicht), eine spalte ihre hoehe unter ihren
+   kacheln (flex: 1 je kachel). beides summiert sich immer auf das ganze.
+   es gibt also keinen platz, der zu niemandem gehoert — eine luecke ist
+   nicht darstellbar, nicht bloss unwahrscheinlich.                        */
+
+/* der wrapper traegt die container-einheit: --unit ist ein viertel der
+   breite, so wie eine zelle im alten raster. die zeilenhoehe ist ein
+   vielfaches davon und skaliert damit mit der seite. */
 #gridWrap { container-type: inline-size; width: 100%; }
 
 #grid {
-    display: grid;
-    transition: opacity 0.3s ease-in-out;
-    grid-template-columns: repeat(var(--cols), 1fr);
-    grid-auto-rows: 220px;              /* fallback */
-    grid-auto-flow: row dense;          /* dense = keine loecher zwischen groessen */
+    display: flex;
+    flex-direction: column;
     gap: var(--gap);
     list-style: none;
     margin: 0;
     padding: 0;
+    transition: opacity 0.3s ease-in-out;
+    --unit: calc((100cqw - 3 * var(--gap)) / 4);
 }
-
-@supports (width: 1cqw) {
-    #grid {
-        grid-auto-rows: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols));
-    }
-}
-
-/*--- die waehlbaren kachelgroessen ---
-  small  1x1   wide  2x1   tall  1x2   large  2x2   banner  volle breite x1
-  alle spannen ganzzahlige vielfache derselben zelle — deshalb geht das
-  raster mit "dense" immer lueckenlos auf, egal in welcher reihenfolge. */
-.tile.size-small  { grid-column: span 1; grid-row: span 1; }
-.tile.size-wide   { grid-column: span 2; grid-row: span 1; }
-.tile.size-tall   { grid-column: span 1; grid-row: span 2; }
-.tile.size-large  { grid-column: span 2; grid-row: span 2; }
-.tile.size-banner { grid-column: 1 / -1; grid-row: span 1; }
 
 /* beim umsortieren blendet das ganze raster kurz weg — nichts poppt */
 #grid.reflowing { opacity: 0; }
+
+.grid-row {
+    display: flex;
+    gap: var(--gap);
+    /* --units kommt aus dem javascript: 1 flach, 2 normal, 3 hoch */
+    height: calc(var(--units, 2) * var(--unit));
+}
+
+.grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    /* --weight ist der anteil an der zeilenbreite. flex-basis 0 sorgt dafuer,
+       dass allein das gewicht zaehlt und nicht der inhalt. */
+    flex: var(--weight, 1) 1 0;
+    min-width: 0;
+}
+
+/* jede kachel einer spalte nimmt denselben anteil der zeilenhoehe */
+.grid-cell > .tile { flex: 1 1 0; min-height: 0; }
+
+/* ohne javascript bleibt eine schlichte spalte stehen, statt nichts */
+#grid:not(:has(.grid-row)) > .tile { height: calc(2 * var(--unit)); }
 
 /*=== PORTFOLIO — KACHEL ===*/
 .tile {
@@ -284,12 +299,11 @@ body.portfolio footer p { margin-left: 0; }
 
 .tile:hover { font-style: normal; border-color: var(--acntclr); }
 
-/* focus/dim: haengt eine kachel im hover, dimmt das grid alles andere ab */
+/* focus/dim: haengt eine kachel im hover, dimmt alles andere ab */
 #grid.mm-focusing .tile:not(.mm-active) { opacity: 0.7; }
 
-/* ausgefilterte kacheln verschwinden weich und geben ihren platz frei */
-.tile.hidden { display: none; }
-.tile.fading { opacity: 0; }
+/* ausgefiltert wird nicht mehr ueber eine klasse: die kachel wird beim
+   neuaufbau der zeilen einfach nicht einsortiert. */
 
 /* die ganze kachel ist ein link */
 .tile-link {
@@ -384,9 +398,18 @@ body.portfolio footer p { margin-left: 0; }
     overflow: hidden;
 }
 
-.tile.size-small .tile-summary { -webkit-line-clamp: 2; line-clamp: 2; }
-.tile.size-large .tile-summary,
-.tile.size-tall .tile-summary  { -webkit-line-clamp: 5; line-clamp: 5; }
+/* wie viele zeilen der kurztext bekommt, haengt an der kachelhoehe.
+   container-query statt groessenklasse: die kachel weiss selbst, wie hoch
+   sie geworden ist. */
+.tile { container-type: size; }
+
+@container (max-height: 220px) {
+    .tile-summary { -webkit-line-clamp: 2; line-clamp: 2; }
+}
+
+@container (min-height: 400px) {
+    .tile-summary { -webkit-line-clamp: 5; line-clamp: 5; }
+}
 
 .tile-meta {
     display: flex;
@@ -640,10 +663,6 @@ body.tabbed .lead.empty { text-align: center; font-style: italic; opacity: 0.6; 
     :root { --cols: 1; }
     /* bei einer spalte wird jede kachel ein quadrat — sonst waere die seite
        durch die hohen groessen doppelt so lang wie noetig. */
-    .tile.size-wide,
-    .tile.size-tall,
-    .tile.size-large,
-    .tile.size-banner { grid-column: span 1; grid-row: span 1; }
     .portfolio-head { flex-direction: column; align-items: flex-start; }
     .control-label { min-width: 0; width: 100%; }
 }
