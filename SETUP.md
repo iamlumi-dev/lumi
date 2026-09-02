@@ -25,7 +25,7 @@ noch nicht kennt. Beispiele gehen von Debian/Ubuntu aus.
 | Node.js | **≥ 20.10**, empfohlen 22 LTS | |
 | npm | passend zur Node-Version | |
 | Build-Tools | `build-essential`, `python3` | nur falls `better-sqlite3` aus Quellen gebaut werden muss |
-| ffmpeg | optional | nur für die Platzhalter-Medien des Seeds |
+| ffmpeg | **empfohlen** | Standbilder für Videos und kleine Fassungen großer Bilder. Ohne ffmpeg bleiben Video-Kacheln leer und die Übersicht lädt die Originale |
 
 ```bash
 sudo apt update
@@ -121,6 +121,7 @@ zweierlei, damit nie etwas verloren geht:
    `--reset --force` verwirft sie wirklich.
 
 ```bash
+npm run media:prepare                # fehlende Standbilder/Verkleinerungen nachziehen
 npm run db:backup                    # Sicherung von Hand
 npm run db:restore                   # vorhandene Sicherungen auflisten
 npm run db:restore -- <datei>        # eine zurückspielen

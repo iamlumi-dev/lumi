@@ -15,7 +15,8 @@
     "setup": "npm run db:migrate && npm run db:seed",
     "admin:create": "node scripts/admin.js",
     "db:backup": "node scripts/backup.js",
-    "db:restore": "node scripts/restore.js"
+    "db:restore": "node scripts/restore.js",
+    "media:prepare": "node scripts/media.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",

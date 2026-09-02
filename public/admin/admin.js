@@ -407,7 +407,11 @@
           try {
             await api(`/admin/posts/${postId}/media`, {
               method: 'POST',
-              body: { kind: data.kind, src: data.src, alt: '', caption: '' },
+              body: {
+                kind: data.kind, src: data.src,
+                poster: data.poster || '', thumb: data.thumb || '',
+                alt: '', caption: '',
+              },
             });
             state.textContent = 'done';
           } catch (err) {
@@ -430,10 +434,11 @@
     box.appendChild(uploads);
     box.appendChild(el('p', { class: 'row-sub', id: 'uploadLimit', text: '' }));
 
-    api('/admin/upload/limits').then(({ maxUploadMb }) => {
-      box.querySelector('#uploadLimit').textContent = maxUploadMb > 0
+    api('/admin/upload/limits').then(({ maxUploadMb, posters }) => {
+      box.querySelector('#uploadLimit').textContent = (maxUploadMb > 0
         ? `up to ${maxUploadMb} MB per file. images, video and audio — no svg.`
-        : 'no size limit set. images, video and audio — no svg.';
+        : 'no size limit set. images, video and audio — no svg.')
+        + (posters ? ' videos get a still frame automatically.' : ' no ffmpeg on the server — videos will not get a still frame.');
     }).catch(() => {});
 
     return box;

@@ -17,6 +17,7 @@ import { PAGE_LAYOUTS } from '../lib/pages.js';
 import { SHOUTOUT_KINDS } from '../lib/shoutouts.js';
 import * as store from '../lib/write.js';
 import { BadRequest, str, oneOf, bool, int, intList, dateTime, url, youtubeId } from '../lib/validate.js';
+import { makePoster, makeThumb, ffmpegAvailable } from '../lib/poster.js';
 
 export const admin = Router();
 
@@ -95,6 +96,7 @@ admin.post('/posts/:id/media', handle((req, res) => {
     kind,
     src,
     poster: body.poster ? url(body.poster, 'standbild') : null,
+    thumb: body.thumb ? url(body.thumb, 'kleine fassung') : null,
     alt: str(body.alt, 'alternativtext', { max: 300 }),
     caption: str(body.caption, 'bildunterschrift', { max: 300 }),
     is_cover: bool(body.isCover),
@@ -180,7 +182,7 @@ const upload = multer({
 
 // eine datei pro anfrage — nur so bekommt jede ihren eigenen fortschritt
 admin.post('/upload', (req, res, next) => {
-  upload.single('file')(req, res, (err) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) {
       if (err instanceof BadRequest) return res.status(400).json({ error: err.message });
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -190,19 +192,35 @@ admin.post('/upload', (req, res, next) => {
     }
     if (!req.file) return res.status(400).json({ error: 'keine datei angekommen' });
 
+    const src = `/uploads/media/${req.file.filename}`;
+    const kind = ALLOWED[req.file.mimetype][1];
+
+    // fuer videos gleich ein standbild erzeugen. ohne das bliebe die kachel
+    // leer, und der browser wuerde beim versuch, selbst eines zu holen,
+    // die halbe datei laden.
+    const poster = kind === 'video' ? await makePoster(src) : null;
+
+    // bilder bekommen eine kleine fassung fuers raster — ein 46-MB-png in
+    // einer kachel anzuzeigen laedt 46 MB
+    const thumb = kind === 'image' ? await makeThumb(src) : null;
+
     res.status(201).json({
-      src: `/uploads/media/${req.file.filename}`,
-      kind: ALLOWED[req.file.mimetype][1],
+      src,
+      kind,
+      poster,
+      thumb,
       bytes: req.file.size,
       originalName: req.file.originalname,
     });
   });
 });
 
-admin.get('/upload/limits', (req, res) => {
+admin.get('/upload/limits', async (req, res) => {
   res.json({
     maxUploadMb: config.maxUploadMb,          // 0 = kein limit
     accept: Object.keys(ALLOWED),
+    // ohne ffmpeg gibt es keine standbilder fuer videos
+    posters: await ffmpegAvailable(),
   });
 });
 

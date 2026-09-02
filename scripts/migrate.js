@@ -21,6 +21,7 @@ const ADDED_COLUMNS = [
   ['pages', 'tab_group', "TEXT NOT NULL DEFAULT ''"],
   ['pages', 'position',  'INTEGER NOT NULL DEFAULT 0'],
   ['links', 'note',      "TEXT NOT NULL DEFAULT ''"],
+  ['media', 'thumb',     'TEXT'],
   // zweiter faktor
   ['users', 'totp_secret',    'TEXT'],
   ['users', 'totp_pending',   'TEXT'],

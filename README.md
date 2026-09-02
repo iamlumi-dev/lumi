@@ -232,6 +232,25 @@ Der Dateiname wird selbst vergeben, der Originalname geht nie in den Pfad ein.
 Die Grenze steht in `MAX_UPLOAD_MB` (Standard 500, `0` schaltet sie ab). Der
 Reverse Proxy hat sein eigenes Limit — siehe `SETUP.md`.
 
+### Abgeleitete Medien
+
+Die Übersicht zeigt **nie** das Original:
+
+- **Videos** bekommen beim Upload ein Standbild (`media.poster`, per ffmpeg
+  eine Sekunde hinein — Bild null ist oft schwarz). Die Kachel lädt damit
+  **null Bytes** vom Video und spielt erst im Hover.
+  `preload="metadata"` wäre keine Lösung: bei einem mp4, dessen moov-Atom am
+  Ende liegt, holt der Browser dafür fast die ganze Datei.
+- **Große Bilder** bekommen eine Fassung von 1200 px (`media.thumb`), ab
+  300 kB Originalgröße. Ein Cover von 6372 × 6372 px und 46 MB wird damit
+  zu 171 kB.
+
+Gemessen an lumis acht Posts: die Übersicht lud **57 MB**, jetzt **1,45 MB**.
+
+Nachträglich erzeugen: `npm run media:prepare` (idempotent, sichert vorher).
+Ohne ffmpeg entfällt beides und die Seite funktioniert unverändert, nur
+schwerer.
+
 ### YouTube
 
 Gespeichert wird nur die Video-ID, egal in welcher Form die Adresse eingefügt

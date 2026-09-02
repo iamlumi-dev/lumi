@@ -120,16 +120,23 @@
       box.appendChild(img);
     } else if (cover.kind === 'video') {
       const v = document.createElement('video');
-      v.src = cover.src;
-      if (cover.poster) v.poster = cover.poster;
+      /* preload MUSS vor src stehen, sonst greift es nicht mehr.
+         und es bleibt bei 'none': mit 'metadata' holt der browser bei einem
+         mp4, dessen moov-atom am ende liegt, fast die ganze datei — bei
+         videos von 40 bis 110 MB waeren das hunderte megabyte, nur fuer
+         vier standbilder. das standbild kommt deshalb aus poster, das
+         erzeugt der server beim upload (server/lib/poster.js). */
+      v.preload = 'none';
       v.muted = true;
       v.loop = true;
       v.playsInline = true;
-      v.preload = 'none';
+      if (cover.poster) v.poster = cover.poster;
+      v.src = cover.src;
       box.appendChild(v);
     } else {
       const img = document.createElement('img');
-      img.src = cover.src;
+      // kleine fassung, wenn es eine gibt — das original kann 46 MB haben
+      img.src = cover.thumb || cover.src;
       img.alt = cover.alt || '';
       img.loading = 'lazy';
       img.decoding = 'async';

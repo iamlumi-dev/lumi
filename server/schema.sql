@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS media (
   kind     TEXT    NOT NULL CHECK (kind IN ('image','video','audio','youtube')),
   src      TEXT    NOT NULL,                     -- pfad unter /uploads/, externe url,
                                                  -- oder bei youtube die video-id
-  poster   TEXT,                                 -- standbild fuer video (optional)
+  poster   TEXT,                                 -- standbild fuer video, erzeugt
+  thumb    TEXT,                                 -- kleine fassung fuers raster, erzeugt
   alt      TEXT    NOT NULL DEFAULT '',          -- barrierefreiheit / bildunterschrift
   caption  TEXT    NOT NULL DEFAULT '',
   is_cover INTEGER NOT NULL DEFAULT 0 CHECK (is_cover IN (0,1)), -- zeigt die kachel
