@@ -358,6 +358,10 @@ body.portfolio footer p { margin-left: 0; }
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
+    /* die textebene liegt ueber der medienflaeche und wuerde deren
+       zeigerereignisse schlucken — dann kaeme kein hover mehr am
+       spektrogramm an. die ganze kachel ist ohnehin ein link. */
+    pointer-events: none;
 }
 
 /* posts ohne medium: text steht oben, sonst wirkt die kachel unten schwer */
@@ -470,14 +474,61 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
     border: 1.5px solid var(--altbgclr);
 }
 
-/*--- eigener audio-player ---*/
+/*--- audio: visualizer und bedienung ---*/
 .audio {
+    border: 1.5px solid var(--altbgclr);
+}
+
+/* die flaeche, auf der gezogen wird. touch-action: none, sonst scrollt das
+   handy die seite weg, statt die lautstaerke zu aendern. */
+.audio-stage {
+    position: relative;
+    aspect-ratio: 5 / 2;
+    max-height: 320px;
+    touch-action: none;
+    cursor: ns-resize;
+    isolation: isolate;
+}
+
+.audio-viz {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.audio-hint,
+.audio-volume {
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.7rem;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.audio-hint {
+    bottom: 0.5rem;
+    opacity: 0.35;
+}
+
+.audio-volume {
+    top: 0.5rem;
+    color: var(--titleclr);
+    opacity: 0;
+}
+
+.audio-stage:hover .audio-hint { opacity: 0.6; }
+.audio-stage.adjusting .audio-hint { opacity: 0; }
+.audio-stage.adjusting .audio-volume { opacity: 1; }
+.audio-stage:focus-visible { outline: 1.5px solid var(--acntclr); outline-offset: -2px; }
+
+.audio-line {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.6rem 0;
+    padding: 0.5rem;
     border-top: 1.5px solid var(--altbgclr);
-    border-bottom: 1.5px solid var(--altbgclr);
 }
 
 .audio audio { display: none; }
@@ -503,18 +554,9 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
     cursor: pointer;
 }
 
-.audio-seek::-webkit-slider-runnable-track {
-    height: 1.5px;
-    background: var(--altbgclr);
-}
-.audio-seek::-moz-range-track {
-    height: 1.5px;
-    background: var(--altbgclr);
-}
-.audio-seek::-moz-range-progress {
-    height: 1.5px;
-    background: var(--acntclr);
-}
+.audio-seek::-webkit-slider-runnable-track { height: 1.5px; background: var(--altbgclr); }
+.audio-seek::-moz-range-track { height: 1.5px; background: var(--altbgclr); }
+.audio-seek::-moz-range-progress { height: 1.5px; background: var(--acntclr); }
 
 .audio-seek::-webkit-slider-thumb {
     appearance: none;
@@ -534,12 +576,16 @@ body.post #middleSection { margin: 0 auto; align-items: stretch; }
     border-radius: 0;
 }
 
-.post-media figcaption {
+/*--- zurueck zum portfolio ---*/
+.back-link {
+    display: inline-block;
     font-size: 0.85rem;
-    opacity: 0.55;
-    margin-top: 0.4rem;
-    font-style: italic;
+    opacity: 0.6;
+    margin-bottom: 1.5rem;
+    transition: opacity 0.3s ease-in-out, color 0.3s ease-in-out;
 }
+
+.back-link:hover { opacity: 1; color: var(--acntclr); font-style: normal; }
 
 .post-neighbours {
     display: flex;
@@ -1176,3 +1222,45 @@ body.textpage #selections {
 }
 
 .term-link:hover { color: var(--acntclr); font-style: normal; }
+
+/*=== SPEKTROGRAMM IN DER KACHEL ===*/
+/* das gruene tint-overlay der medienflaeche gilt hier nicht: das
+   spektrogramm ist schon in den farben der seite gezeichnet. */
+.tile-spectrum::after { display: none; }
+
+.spectrum-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+}
+
+/* abspielpunkt beim ueberfahren */
+.spectrum-head {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1.5px;
+    background-color: var(--txtclr);
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.spectrum-time {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--txtclr);
+    background-color: var(--bgclr);
+    padding: 0.1rem 0.3rem;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tile-spectrum.seeking .spectrum-head,
+.tile-spectrum.seeking .spectrum-time { opacity: 1; }

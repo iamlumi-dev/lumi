@@ -25,7 +25,7 @@ noch nicht kennt. Beispiele gehen von Debian/Ubuntu aus.
 | Node.js | **≥ 20.10**, empfohlen 22 LTS | |
 | npm | passend zur Node-Version | |
 | Build-Tools | `build-essential`, `python3` | nur falls `better-sqlite3` aus Quellen gebaut werden muss |
-| ffmpeg | **empfohlen** | Standbilder für Videos und kleine Fassungen großer Bilder. Ohne ffmpeg bleiben Video-Kacheln leer und die Übersicht lädt die Originale |
+| ffmpeg | **empfohlen** | Standbilder für Videos, kleine Fassungen großer Bilder, Spektrogramme für Audio. Ohne ffmpeg bleiben Video- und Audio-Kacheln leer und die Übersicht lädt die Originale |
 
 ```bash
 sudo apt update

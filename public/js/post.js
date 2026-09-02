@@ -21,14 +21,34 @@
     return frag;
   }
 
-  /* eigener audio-player: die nativen controls sind hellgrau-weiss und
-     wuerden die monochrome palette sprengen. hier nur text und linien. */
-  function audioPlayer(src) {
+  /* =====================================================================
+     audio
+     =====================================================================
+     eigener player, weil die nativen controls hellgrau-weiss sind und die
+     palette sprengen wuerden. dazu ein lebender visualizer nach dem vorbild
+     von ferrofluid-displays: eine dunkle masse, aus der spitzen wachsen.
+
+     die lautstaerke wird durch ziehen auf dem visualizer geregelt — hoch
+     lauter, runter leiser. auf dem handy ist das deutlich angenehmer als
+     ein schmaler regler.                                                  */
+
+  function audioPlayer(src, startAt = null) {
     const audio = el('audio');
     audio.src = src;
     audio.preload = 'metadata';
 
     const box = el('div', 'audio');
+
+    /* ---- visualizer ---- */
+    const canvas = el('canvas', 'audio-viz');
+    canvas.setAttribute('aria-hidden', 'true');
+    const hint = el('div', 'audio-hint', 'drag up or down for volume');
+    const volumeTag = el('div', 'audio-volume');
+    const stage = el('div', 'audio-stage');
+    stage.append(canvas, hint, volumeTag);
+    box.appendChild(stage);
+
+    /* ---- bedienung ---- */
     const toggle = el('button', 'audio-toggle', 'play');
     toggle.type = 'button';
     toggle.setAttribute('aria-label', 'play');
@@ -41,30 +61,156 @@
 
     const time = el('span', 'audio-time', '0:00 / –:––');
 
-    const fmt = (secs) => {
-      if (!isFinite(secs)) return '–:––';
-      const m = Math.floor(secs / 60);
-      const s2 = Math.floor(secs % 60);
-      return `${m}:${String(s2).padStart(2, '0')}`;
+    // el() nimmt hier (tag, klasse, text) — keine kinder. die muessen
+    // ausdruecklich angehaengt werden.
+    const line = el('div', 'audio-line');
+    line.append(toggle, seek, time);
+    box.append(line, audio);
+
+    /* ---- web audio, erst beim ersten abspielen ----
+       ein AudioContext darf ohne zutun des nutzers nicht laufen, und ein
+       MediaElementSource laesst sich nur einmal je element anlegen. */
+    let graph = null;
+    let volume = 0.8;
+    audio.volume = volume;
+
+    function ensureGraph() {
+      if (graph) return graph;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      try {
+        const ctx = new Ctx();
+        const source = ctx.createMediaElementSource(audio);
+        const gain = ctx.createGain();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.75;
+        source.connect(gain);
+        gain.connect(analyser);
+        analyser.connect(ctx.destination);
+
+        // ab jetzt regelt der gain die lautstaerke, nicht mehr das element
+        gain.gain.value = volume;
+        audio.volume = 1;
+        graph = { ctx, gain, analyser, data: new Uint8Array(analyser.frequencyBinCount) };
+      } catch {
+        graph = null;
+      }
+      return graph;
+    }
+
+    function setVolume(v) {
+      volume = Math.max(0, Math.min(1, v));
+      if (graph) graph.gain.gain.value = volume;
+      else audio.volume = volume;
+      volumeTag.textContent = `volume ${Math.round(volume * 100)}%`;
+    }
+    setVolume(volume);
+
+    /* ---- zeichnen ---- */
+    const viz = window.__viz.ferrofluid(canvas);
+    const idle = new Uint8Array(64);
+    let raf = null;
+
+    function frame() {
+      window.__viz.fit(canvas);
+      let data = idle;
+      let level = 0;
+      if (graph) {
+        graph.analyser.getByteFrequencyData(graph.data);
+        data = graph.data;
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        level = sum / data.length / 255;
+      }
+      viz.draw(data, level);
+
+      // im ruhezustand einmal nachzeichnen und dann aufhoeren
+      if (!audio.paused) raf = requestAnimationFrame(frame);
+      else raf = null;
+    }
+
+    function startDrawing() {
+      if (raf === null) raf = requestAnimationFrame(frame);
+    }
+
+    /* ---- lautstaerke durch ziehen ---- */
+    let drag = null;
+    stage.addEventListener('pointerdown', (e) => {
+      stage.setPointerCapture(e.pointerId);
+      drag = { y: e.clientY, from: volume, moved: 0 };
+      stage.classList.add('adjusting');
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dy = drag.y - e.clientY;
+      drag.moved = Math.max(drag.moved, Math.abs(dy));
+      // die volle hoehe des feldes entspricht etwa dem ganzen bereich
+      setVolume(drag.from + dy / stage.getBoundingClientRect().height);
+    });
+    const endDrag = (e) => {
+      if (!drag) return;
+      const wasClick = drag.moved < 5;
+      drag = null;
+      stage.classList.remove('adjusting');
+      stage.releasePointerCapture?.(e.pointerId);
+      // ohne bewegung war es ein klick — dann abspielen oder anhalten
+      if (wasClick) toggle.click();
     };
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+
+    // tastatur: hoch und runter regeln ebenfalls
+    stage.tabIndex = 0;
+    stage.setAttribute('role', 'slider');
+    stage.setAttribute('aria-label', 'volume');
+    stage.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') { e.preventDefault(); setVolume(volume + 0.05); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); setVolume(volume - 0.05); }
+      else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle.click(); }
+    });
+
+    /* ---- abspielen ---- */
     const sync = () => {
-      time.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
+      time.textContent =
+        `${window.__viz.formatTime(audio.currentTime)} / ${window.__viz.formatTime(audio.duration)}`;
     };
 
     toggle.addEventListener('click', () => {
-      if (audio.paused) audio.play().catch(() => {});
-      else audio.pause();
+      if (audio.paused) {
+        ensureGraph();
+        graph?.ctx.resume?.();
+        audio.play().catch(() => {});
+      } else {
+        audio.pause();
+      }
     });
+
     audio.addEventListener('play', () => {
       toggle.textContent = 'pause';
       toggle.setAttribute('aria-label', 'pause');
+      ensureGraph();
+      startDrawing();
     });
     audio.addEventListener('pause', () => {
       toggle.textContent = 'play';
       toggle.setAttribute('aria-label', 'play');
     });
     audio.addEventListener('ended', () => { seek.value = 0; sync(); });
-    audio.addEventListener('loadedmetadata', sync);
+    audio.addEventListener('loadedmetadata', () => {
+      sync();
+      // sprungziel aus dem grid: ?t=… an der kachel angeklickt
+      if (startAt !== null && isFinite(audio.duration)) {
+        audio.currentTime = Math.min(startAt, audio.duration - 0.1);
+        seek.value = (audio.currentTime / audio.duration) * 100;
+        sync();
+        // versuchen loszuspielen. blockt der browser das (kein zutun des
+        // nutzers auf DIESER seite), bleibt es stehen — die stelle stimmt
+        // trotzdem und ein druck auf play genuegt.
+        ensureGraph();
+        audio.play().then(startDrawing).catch(() => {});
+      }
+    });
     audio.addEventListener('timeupdate', () => {
       if (audio.duration) seek.value = (audio.currentTime / audio.duration) * 100;
       sync();
@@ -73,37 +219,9 @@
       if (audio.duration) audio.currentTime = (seek.value / 100) * audio.duration;
     });
 
-    box.append(toggle, seek, time, audio);
-    return box;
-  }
+    // einmal zeichnen, damit auch vor dem ersten abspielen etwas dasteht
+    requestAnimationFrame(() => { window.__viz.fit(canvas); viz.draw(idle, 0); });
 
-  /* youtube: erst ein vorschaubild, der player kommt nach dem klick.
-     bis dahin laedt nichts von youtube ausser dem standbild — das haelt
-     die uebersicht ruhig und setzt keine fremden cookies ungefragt. */
-  function youtubeEmbed(m) {
-    const box = el('div', 'yt');
-
-    const thumb = el('img', 'yt-thumb');
-    thumb.src = `https://i.ytimg.com/vi/${m.src}/hqdefault.jpg`;
-    thumb.alt = m.alt || '';
-    thumb.loading = 'lazy';
-
-    const play = el('button', 'yt-play', 'play');
-    play.type = 'button';
-    play.setAttribute('aria-label', `play ${m.alt || 'video'} on youtube`);
-
-    const load = () => {
-      const frame = el('iframe', 'yt-frame');
-      frame.src = `https://www.youtube-nocookie.com/embed/${m.src}?autoplay=1&rel=0`;
-      frame.title = m.alt || 'youtube video';
-      frame.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
-      frame.allowFullscreen = true;
-      frame.referrerPolicy = 'strict-origin-when-cross-origin';
-      box.replaceChildren(frame);
-    };
-
-    play.addEventListener('click', load);
-    box.append(thumb, play);
     return box;
   }
 
@@ -125,7 +243,8 @@
       v.preload = 'metadata';
       fig.appendChild(v);
     } else if (m.kind === 'audio') {
-      fig.appendChild(audioPlayer(m.src));
+      const t = Number(new URLSearchParams(location.search).get('t'));
+      fig.appendChild(audioPlayer(m.src, isFinite(t) && t > 0 ? t : null));
     } else if (m.kind === 'youtube') {
       fig.appendChild(youtubeEmbed(m));
     }

@@ -19,6 +19,7 @@ import * as layout from '../lib/layout.js';
 import * as store from '../lib/write.js';
 import { BadRequest, str, oneOf, bool, int, intList, dateTime, url, youtubeId } from '../lib/validate.js';
 import { makePoster, makeThumb, ffmpegAvailable } from '../lib/poster.js';
+import { makeSpectrum } from '../lib/spectrum.js';
 
 export const admin = Router();
 
@@ -98,6 +99,7 @@ admin.post('/posts/:id/media', handle((req, res) => {
     src,
     poster: body.poster ? url(body.poster, 'standbild') : null,
     thumb: body.thumb ? url(body.thumb, 'kleine fassung') : null,
+    spectrum: body.spectrum ? url(body.spectrum, 'spektrum') : null,
     alt: str(body.alt, 'alternativtext', { max: 300 }),
     caption: str(body.caption, 'bildunterschrift', { max: 300 }),
     is_cover: bool(body.isCover),
@@ -205,11 +207,15 @@ admin.post('/upload', (req, res, next) => {
     // einer kachel anzuzeigen laedt 46 MB
     const thumb = kind === 'image' ? await makeThumb(src) : null;
 
+    // audio bekommt ein vorberechnetes spektrogramm fuer die kachel
+    const spectrum = kind === 'audio' ? await makeSpectrum(src) : null;
+
     res.status(201).json({
       src,
       kind,
       poster,
       thumb,
+      spectrum,
       bytes: req.file.size,
       originalName: req.file.originalname,
     });

@@ -84,9 +84,14 @@ export function updatePost(id, fields) {
 
 export function deletePost(id) {
   // zugehoerige dateien mit entfernen, sonst bleiben sie fuer immer liegen
-  const files = db.prepare("SELECT src, poster, thumb FROM media WHERE post_id = ?").all(id);
+  const files = db.prepare("SELECT src, poster, thumb, spectrum FROM media WHERE post_id = ?").all(id);
   const gone = db.prepare('DELETE FROM posts WHERE id = ?').run(id).changes;
-  if (gone) files.forEach((m) => { removeUpload(m.src); removeUpload(m.poster); removeUpload(m.thumb); });
+  if (gone) {
+    files.forEach((m) => {
+      removeUpload(m.src); removeUpload(m.poster);
+      removeUpload(m.thumb); removeUpload(m.spectrum);
+    });
+  }
   return gone > 0;
 }
 
@@ -103,13 +108,14 @@ export const setPostCategories = db.transaction((postId, categoryIds) => {
 /* ---- medien -------------------------------------------------------------- */
 
 const qMedia = db.prepare(`
-  SELECT id, post_id, kind, src, poster, thumb, alt, caption, is_cover, position
+  SELECT id, post_id, kind, src, poster, thumb, spectrum, alt, caption, is_cover, position
   FROM media WHERE post_id = ? ORDER BY position ASC, id ASC
 `);
 
 export function listMedia(postId) {
   return qMedia.all(postId).map((m) => ({
     id: m.id, kind: m.kind, src: m.src, poster: m.poster, thumb: m.thumb,
+    spectrum: m.spectrum,
     alt: m.alt, caption: m.caption, isCover: !!m.is_cover, position: m.position,
   }));
 }
@@ -118,9 +124,9 @@ export function addMedia(postId, fields) {
   const next = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS n FROM media WHERE post_id = ?')
     .get(postId).n;
   const id = db.prepare(`
-    INSERT INTO media (post_id, kind, src, poster, thumb, alt, caption, is_cover, position)
-    VALUES (@post_id, @kind, @src, @poster, @thumb, @alt, @caption, @is_cover, @position)
-  `).run({ post_id: postId, position: next, thumb: null, ...fields }).lastInsertRowid;
+    INSERT INTO media (post_id, kind, src, poster, thumb, spectrum, alt, caption, is_cover, position)
+    VALUES (@post_id, @kind, @src, @poster, @thumb, @spectrum, @alt, @caption, @is_cover, @position)
+  `).run({ post_id: postId, position: next, thumb: null, spectrum: null, ...fields }).lastInsertRowid;
   if (fields.is_cover) setCover(postId, id);
   return id;
 }
@@ -141,13 +147,14 @@ export const setCover = db.transaction((postId, mediaId) => {
 });
 
 export function deleteMedia(id) {
-  const row = db.prepare('SELECT src, poster, thumb FROM media WHERE id = ?').get(id);
+  const row = db.prepare('SELECT src, poster, thumb, spectrum FROM media WHERE id = ?').get(id);
   if (!row) return false;
   db.prepare('DELETE FROM media WHERE id = ?').run(id);
-  // original, standbild und kleine fassung gehoeren alle drei weg
+  // original und alles daraus abgeleitete gehoert weg
   removeUpload(row.src);
   removeUpload(row.poster);
   removeUpload(row.thumb);
+  removeUpload(row.spectrum);
   return true;
 }
 
@@ -169,8 +176,8 @@ function removeUpload(src) {
   // nur loeschen, wenn die datei nirgends mehr gebraucht wird — weder als
   // medium eines posts noch als titelbild eines shoutouts
   const usedByMedia = db.prepare(
-    'SELECT 1 FROM media WHERE src = ? OR poster = ? OR thumb = ? LIMIT 1'
-  ).get(src, src, src);
+    'SELECT 1 FROM media WHERE src = ? OR poster = ? OR thumb = ? OR spectrum = ? LIMIT 1'
+  ).get(src, src, src, src);
   const usedByShoutout = db.prepare('SELECT 1 FROM shoutouts WHERE cover = ? LIMIT 1').get(src);
   if (usedByMedia || usedByShoutout) return;
 

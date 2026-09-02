@@ -148,6 +148,68 @@
     return box;
   }
 
+  /* spektrogramm einer audiodatei. beim ueberfahren zeigt eine linie, wo im
+     stueck man gerade ist; der link bekommt die stelle als ?t= angehaengt,
+     sodass ein klick die detailseite genau dort startet. der link wird dabei
+     nur umgeschrieben, nicht abgefangen — mittelklick und tastatur
+     funktionieren dadurch weiter. */
+  function spectrumNode(post, media, link) {
+    const box = document.createElement('div');
+    box.className = 'tile-media tile-spectrum';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'spectrum-canvas';
+    box.appendChild(canvas);
+
+    const head = document.createElement('div');
+    head.className = 'spectrum-head';
+    box.appendChild(head);
+
+    const time = document.createElement('span');
+    time.className = 'spectrum-time';
+    box.appendChild(time);
+
+    const base = `/portfolio/${post.slug}`;
+    let spec = null;
+
+    const paint = () => {
+      if (!spec) return;
+      if (window.__viz.fit(canvas) || !canvas.dataset.painted) {
+        window.__viz.drawSpectrogram(canvas, spec);
+        canvas.dataset.painted = '1';
+      }
+    };
+
+    window.__viz.loadSpectrum(media.spectrum).then((loaded) => {
+      spec = loaded;
+      canvas.dataset.painted = '';
+      paint();
+    }).catch(() => { box.classList.add('spectrum-failed'); });
+
+    // beim ueberfahren die stelle anzeigen und in den link schreiben
+    box.addEventListener('pointermove', (e) => {
+      if (!spec) return;
+      const rect = box.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const at = ratio * spec.duration;
+      head.style.left = `${ratio * 100}%`;
+      box.classList.add('seeking');
+      time.textContent = window.__viz.formatTime(at);
+      link.href = `${base}?t=${at.toFixed(1)}`;
+    });
+
+    box.addEventListener('pointerleave', () => {
+      box.classList.remove('seeking');
+      link.href = base;
+    });
+
+    // beim ersten anzeigen zeichnen, spaeter bei groessenaenderung neu
+    requestAnimationFrame(paint);
+    new ResizeObserver(() => { canvas.dataset.painted = ''; paint(); }).observe(box);
+
+    return box;
+  }
+
   function tileNode(post) {
     const li = document.createElement('li');
     li.className = 'tile';
@@ -157,10 +219,17 @@
     link.className = 'tile-link';
     link.href = `/portfolio/${post.slug}`;
 
-    // cover nur, wenn es ein sichtbares medium gibt — audio hat kein bild
+    // audio hat kein bild, aber ein vorberechnetes spektrogramm
+    const audio = post.media.find((m) => m.kind === 'audio' && m.spectrum);
     const cover = post.cover && post.cover.kind !== 'audio' ? post.cover : null;
-    if (cover) link.appendChild(mediaNode(cover));
-    else li.classList.add('no-media');
+
+    if (cover) {
+      link.appendChild(mediaNode(cover));
+    } else if (audio) {
+      link.appendChild(spectrumNode(post, audio, link));
+    } else {
+      li.classList.add('no-media');
+    }
 
     const body = document.createElement('div');
     body.className = 'tile-body';

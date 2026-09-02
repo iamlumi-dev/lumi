@@ -112,6 +112,7 @@ server/
   lib/shoutouts.js Empfehlungen
   lib/layout.js   Anordnung des Portfolios: Zeilen, Spalten, Plätze
   lib/poster.js   Standbilder für Videos, kleine Fassungen für Bilder
+  lib/spectrum.js FFT und Spektrogramm einer Audiodatei
   lib/write.js    alle schreibenden Zugriffe
   lib/validate.js Prüfung aller Werte, die von außen kommen
   lib/slug.js     URL-taugliche Slugs (inkl. Umlaute)
@@ -134,6 +135,7 @@ public/
   js/shoutouts.js     Empfehlungsliste
   js/page.js          generische Textseite (friends, colophon, …)
   js/term-toys.js     die Spielereien des Terminals
+  js/audioviz.js      Spektrogramm und Ferrofluid-Visualizer
   js/splash.js        Splash-Text würfeln
   js/terminal.js      das Terminal auf der Startseite
   js/login.js         Anmeldeformular
@@ -253,6 +255,47 @@ Gemessen an lumis acht Posts: die Übersicht lud **57 MB**, jetzt **1,45 MB**.
 Nachträglich erzeugen: `npm run media:prepare` (idempotent, sichert vorher).
 Ohne ffmpeg entfällt beides und die Seite funktioniert unverändert, nur
 schwerer.
+
+### Audio
+
+**In der Übersicht** steht ein Spektrogramm des ganzen Stücks, gezeichnet in
+den fünf Farben der Seite statt in den üblichen Regenbogenfarben. Es wird beim
+Upload einmal berechnet (`server/lib/spectrum.js`) und als ~11 kB neben der
+Datei abgelegt — die Kachel lädt also nicht die Audiodatei.
+
+Gerechnet wird selbst, nicht mit ffmpegs `showspectrumpic`: das liefert ein
+fertiges Bild in einer seiner eigenen Farbskalen. Gebraucht werden aber Zahlen
+— für die Farbgebung **und** dafür, dass eine Stelle im Bild eine Stelle im
+Stück ist. Beim Überfahren zeigt eine Linie die Position, und der Link der
+Kachel bekommt sie als `?t=` angehängt: ein Klick öffnet die Detailseite genau
+dort.
+
+Die FFT ist gegen bekannte Signale geprüft — ein reiner Sinus landet exakt im
+richtigen Bin mit 99,9 % der Energie. Zwei Dinge waren beim Bauen nötig und
+fielen erst durchs Ansehen auf, nicht durch eine Messung:
+
+- Ohne Normierung auf die Fenstergröße liegt alles weit über 0 dB und das Bild
+  ist eine gesättigte Fläche.
+- Mit nur **einem** Fenster je Zeitschritt ist jeder Schritt eine
+  46-ms-Momentaufnahme aus vielleicht einer Sekunde. Benachbarte Schritte sind
+  dann unkorreliert und das Ergebnis sieht aus wie Rauschen. Es wird deshalb
+  über sechs Fenster je Schritt gemittelt.
+
+Die Skala wird pro Datei auf das 5. bis 98. Perzentil gestreckt: eine feste
+dB-Skala macht leise Aufnahmen schwarz und laute zu einer hellen Fläche.
+
+**Auf der Detailseite** läuft ein lebender Visualizer nach dem Vorbild von
+Ferrofluid-Displays — eine Masse, aus der Spitzen wachsen, gespeist aus einem
+`AnalyserNode`. Das Talniveau zwischen zwei Spitzen richtet sich nach der
+kleineren der beiden Nachbarn; dadurch verschmelzen laute Nachbarn zu einer
+Masse mit Spitzen obendrauf statt einzelne Nadeln zu bleiben. Gespiegelt, und
+nur bis 65 % der Bänder — darüber liegt bei mp3 der Tiefpass, die Bins sind
+leer, und die Figur fiel genau dort in sich zusammen.
+
+**Die Lautstärke** wird durch Ziehen auf dem Visualizer geregelt, hoch lauter,
+runter leiser — auf dem Handy deutlich angenehmer als ein schmaler Regler.
+`touch-action: none` sorgt dafür, dass dabei nicht die Seite scrollt. Ein Klick
+ohne Ziehen spielt ab oder hält an, Pfeiltasten regeln ebenfalls.
 
 ### YouTube
 

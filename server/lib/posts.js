@@ -21,7 +21,7 @@ const selectPostBySlug = db.prepare(`
 `);
 
 const selectMediaForPost = db.prepare(`
-  SELECT id, kind, src, poster, thumb, alt, caption, is_cover, position
+  SELECT id, kind, src, poster, thumb, spectrum, alt, caption, is_cover, position
   FROM media
   WHERE post_id = ?
   ORDER BY position ASC, id ASC
@@ -55,6 +55,8 @@ function hydrate(row) {
     poster: m.poster || null,
     // kleine fassung fuers raster; die detailseite nimmt src
     thumb: m.thumb || null,
+    // vorberechnetes spektrogramm bei audio
+    spectrum: m.spectrum || null,
     alt: m.alt,
     caption: m.caption,
     isCover: !!m.is_cover,

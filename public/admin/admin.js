@@ -411,6 +411,7 @@
               body: {
                 kind: data.kind, src: data.src,
                 poster: data.poster || '', thumb: data.thumb || '',
+                spectrum: data.spectrum || '',
                 alt: '', caption: '',
               },
             });
