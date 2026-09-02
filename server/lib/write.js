@@ -219,7 +219,8 @@ export function updatePage(slug, fields) {
   if (!exists) return false;
   db.prepare(`
     UPDATE pages SET title = @title, body = @body, layout = @layout,
-                     position = @position, updated_at = datetime('now')
+                     position = @position, tab_group = @tab_group,
+                     updated_at = datetime('now')
     WHERE slug = @slug
   `).run({ ...fields, slug });
   return true;

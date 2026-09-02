@@ -713,13 +713,18 @@
         form.appendChild(field(siblings > 1 ? 'tab label' : 'page heading',
           input('title', page.title, { required: true, maxlength: 80 })));
 
-        // position ordnet die reiter einer seite. gibt es nur einen, hat sie
-        // keine wirkung — dann wird sie auch nicht angezeigt, sondern nur
-        // unveraendert mitgeschickt.
-        if (siblings > 1) {
-          form.appendChild(field('position — lower numbers come first',
-            input('position', page.position, { type: 'number', min: 0, max: 999 })));
-        }
+        // position bedeutet je nach zusammenhang etwas anderes — die
+        // beschriftung sagt deshalb dazu, welches gerade gilt
+        form.appendChild(field(
+          siblings > 1
+            ? 'position — order of the tabs, lowest first'
+            : 'position in the menu — 0 = not shown, otherwise lowest first',
+          input('position', page.position, { type: 'number', min: 0, max: 999 })));
+
+        form.appendChild(field(
+          'group — pages sharing a group become the tabs of one page',
+          input('tabGroup', page.tab_group, { maxlength: 40, placeholder: 'leave as is unless you know' })));
+
         form.appendChild(field('layout', select('layout', [
           { value: 'prose', label: 'prose — blank line = new paragraph, "## text" = subheading' },
           { value: 'list', label: 'list — "group:" opens a group, "key: value" a labelled row' },
@@ -744,8 +749,8 @@
               title: val(form, 'title'),
               body: val(form, 'body'),
               layout: val(form, 'layout'),
-              // unveraendert weiterreichen, wenn das feld nicht angezeigt wird
-              position: siblings > 1 ? Number(val(form, 'position')) : page.position,
+              position: Number(val(form, 'position')),
+              tabGroup: val(form, 'tabGroup'),
             },
           });
           toast('saved');

@@ -53,3 +53,36 @@ export function getPage(slug) {
 export function getPageGroup(group) {
   return selectGroup.all(group).map(hydrate);
 }
+
+/* ---- navigation -----------------------------------------------------------
+   die menuepunkte kommen aus der datenbank, nicht aus den html-dateien.
+   eine seite taucht auf, sobald ihre position groesser als 0 ist; 0 heisst
+   "nicht anzeigen". reiter einer seite (gruppen mit mehreren eintraegen)
+   zaehlen nicht mit — dort ordnet position die reiter, nicht das menue.       */
+
+// ziele, die keine seite in der datenbank sind und deshalb fest stehen
+const FIXED = [
+  { label: 'work', href: '/portfolio/', position: 0 },
+];
+
+export function navEntries() {
+  const groups = db.prepare(`
+    SELECT tab_group, COUNT(*) AS n FROM pages WHERE tab_group != '' GROUP BY tab_group
+  `).all();
+  const single = new Set(groups.filter((g) => g.n === 1).map((g) => g.tab_group));
+
+  const pages = db.prepare(`
+    SELECT slug, title, tab_group, position FROM pages WHERE position > 0
+  `).all()
+    .filter((p) => single.has(p.tab_group))
+    .map((p) => ({ label: p.title, href: `/${p.slug}/`, position: p.position }));
+
+  // die about-seite hat mehrere reiter und deshalb keine eigene positionszeile
+  const about = db.prepare("SELECT title FROM pages WHERE slug = 'about'").get();
+  const fixed = [...FIXED];
+  if (about) fixed.push({ label: 'about me', href: '/about/', position: 0.5 });
+
+  return [...fixed, ...pages]
+    .sort((a, b) => a.position - b.position || a.label.localeCompare(b.label))
+    .map(({ label, href }) => ({ label, href }));
+}

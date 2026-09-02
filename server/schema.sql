@@ -75,6 +75,16 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_at TEXT
 );
 
+-- ---- merkzettel -----------------------------------------------------------
+-- fuer einmalige umstellungen, die genau einmal laufen duerfen. ohne so einen
+-- vermerk wuerde eine migration bei jedem lauf wieder eingreifen und dabei
+-- aendern, was lumi inzwischen selbst eingestellt hat.
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT '',
+  at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ---- sessions -------------------------------------------------------------
 -- serverseitige sessions: im cookie steht nur ein zufallstoken, in der
 -- datenbank dessen sha-256-hash. wer die datenbank liest, kann daraus keine

@@ -1,7 +1,7 @@
 // oeffentliche, lesende api. alles was hier raus geht ist bereits veroeffentlicht.
 import { Router } from 'express';
 import { listPosts, getPost, listCategories, neighbours, POST_SIZES } from '../lib/posts.js';
-import { getPage, getPageGroup } from '../lib/pages.js';
+import { getPage, getPageGroup, navEntries } from '../lib/pages.js';
 import { activeSplashes } from '../lib/splashes.js';
 import { listShoutouts, shoutoutKindsInUse } from '../lib/shoutouts.js';
 
@@ -39,6 +39,12 @@ api.get('/posts/:slug', cache(30), (req, res) => {
   const post = getPost(req.params.slug);
   if (!post) return res.status(404).json({ error: 'not found' });
   res.json({ post, ...neighbours(post.slug) });
+});
+
+// --- navigation -------------------------------------------------------------
+// jede seite holt sich ihre menuepunkte hierueber, statt sie im html zu haben
+api.get('/nav', cache(60), (req, res) => {
+  res.json({ nav: navEntries() });
 });
 
 // --- shoutouts --------------------------------------------------------------

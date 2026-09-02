@@ -118,4 +118,23 @@ for (const page of REQUIRED_PAGES) {
   }
 }
 
+// --- 5. einmalige umstellungen ----------------------------------------------
+// position bei einzelseiten bedeutet ab jetzt: platz in der navigation,
+// 0 = wird nicht angezeigt. bisher stand da ueberall 0, was jede seite auf
+// einmal aus der navigation genommen haette. deshalb einmalig durchnummerieren
+// — und nur einmal, sonst wuerde eine spaeter bewusst gesetzte 0 wieder
+// ueberschrieben.
+const once = db.prepare('SELECT 1 FROM meta WHERE key = ?');
+const remember = db.prepare('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)');
+
+if (!once.get('nav_positions')) {
+  // reihenfolge wie bisher in den html-dateien
+  const ORDER = ['shoutouts', 'friends', 'colophon'];
+  const update = db.prepare('UPDATE pages SET position = ? WHERE slug = ? AND position = 0');
+  let n = 0;
+  ORDER.forEach((slug, i) => { n += update.run(i + 1, slug).changes; });
+  remember.run('nav_positions', 'done');
+  if (n) console.log(`  ~ ${n} seite(n) in die navigation einsortiert`);
+}
+
 console.log(`✓ schema aktuell in ${config.databasePath}${added ? ` (${added} spalte(n) ergänzt)` : ''}${pagesAdded ? ` (${pagesAdded} seite(n) angelegt)` : ''}`);

@@ -244,15 +244,51 @@
     title:  (a, b) => a.title.localeCompare(b.title),
   };
 
+  // wie viele spalten das raster gerade hat — steht im stylesheet und
+  // aendert sich mit der fensterbreite
+  function countColumns() {
+    const value = getComputedStyle(grid).gridTemplateColumns;
+    return value.split(' ').filter(Boolean).length || 1;
+  }
+
+  /* jede kachel bekommt ihren platz ausdruecklich zugewiesen, statt ihn von
+     "grid-auto-flow: dense" zu bekommen. dense fuellt loecher nur mit
+     spaeteren kleineren kacheln nach — am ende einer liste bleibt fast immer
+     eines stehen. der packer in pack.js kann keines stehen lassen. */
+  function layout(visible) {
+    const cols = countColumns();
+    const placed = window.__pack
+      ? window.__pack.pack(visible.map((p) => ({ size: p.size })), cols)
+      : null;
+
+    visible.forEach((post, i) => {
+      const node = tiles.get(post.slug);
+      const spot = placed && placed[i];
+      if (!spot) {
+        // ohne packer bleibt das verhalten aus dem stylesheet
+        node.style.gridColumn = '';
+        node.style.gridRow = '';
+        return;
+      }
+      node.style.gridColumn = `${spot.c + 1} / span ${spot.w}`;
+      node.style.gridRow = `${spot.r + 1} / span ${spot.h}`;
+    });
+  }
+
+  let shown = [];
+
   function apply(animate) {
     const run = () => {
       const visible = posts.filter(matches).sort(comparators[sort]);
+      shown = visible;
 
-      // reihenfolge im dom setzen — grid-auto-flow: dense packt dann selbst
+      // reihenfolge im dom setzen; den platz vergibt danach der packer
       for (const post of visible) grid.appendChild(tiles.get(post.slug));
 
-      const shown = new Set(visible.map((p) => p.slug));
-      for (const [slug, node] of tiles) node.classList.toggle('hidden', !shown.has(slug));
+      const visibleSlugs = new Set(visible.map((p) => p.slug));
+      for (const [slug, node] of tiles) node.classList.toggle('hidden', !visibleSlugs.has(slug));
+
+      layout(visible);
 
       emptyEl.hidden = visible.length > 0;
       statusEl.textContent =
@@ -271,6 +307,13 @@
       run();
     }
   }
+
+  // spaltenzahl haengt an der fensterbreite — nach dem umbruch neu packen
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => layout(shown), 150);
+  });
 
   load();
 })();

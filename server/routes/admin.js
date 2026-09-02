@@ -253,11 +253,16 @@ admin.get('/pages', (req, res) => res.json({ pages: store.listAllPages() }));
 
 admin.patch('/pages/:slug', handle((req, res) => {
   const body = req.body || {};
-  const ok = store.updatePage(str(req.params.slug, 'slug', { max: 80 }), {
+  const slug = str(req.params.slug, 'slug', { max: 80 });
+  const ok = store.updatePage(slug, {
     title: str(body.title, 'titel', { min: 1, max: 80 }),
     body: str(body.body, 'text', { max: 20000 }),
     layout: oneOf(str(body.layout || 'prose', 'layout'), 'layout', PAGE_LAYOUTS),
     position: int(body.position ?? 0, 'position', { min: 0, max: 999 }),
+    // leer bedeutet: die seite steht fuer sich, gruppiert also mit nichts.
+    // dann bekommt sie ihren eigenen slug als gruppe, sonst faellt sie aus
+    // der navigation heraus.
+    tab_group: str(body.tabGroup, 'gruppe', { max: 40 }) || slug,
   });
   if (!ok) return res.status(404).json({ error: 'nicht gefunden' });
   res.json({ pages: store.listAllPages() });
