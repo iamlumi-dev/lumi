@@ -186,7 +186,7 @@
       const at = hover * wave.duration;
       box.classList.add('seeking');
       time.textContent = window.__viz.formatTime(at);
-      link.href = `${base}?t=${at.toFixed(1)}`;
+      link.href = `${base}?t=${at.toFixed(1)}&audio=${media.id}`;
       paint();
     });
 
@@ -211,8 +211,10 @@
     link.href = `/portfolio/${post.slug}`;
 
     // audio hat kein bild, aber eine vorberechnete wellenform
-    const audio = post.media.find((m) => m.kind === 'audio' && m.waveform);
     const cover = post.cover && post.cover.kind !== 'audio' ? post.cover : null;
+    const audio = (post.cover && post.cover.kind === 'audio' && post.cover.waveform)
+      ? post.cover
+      : post.media.find((m) => m.kind === 'audio' && m.waveform);
 
     if (cover) {
       link.appendChild(mediaNode(cover));

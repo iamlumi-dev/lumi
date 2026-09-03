@@ -62,7 +62,7 @@ api.get('/shoutouts', cache(30), (req, res) => {
 // alle aktiven auf einmal. die startseite zieht daraus selbst eine zufaellige
 // und kann bei jedem klick nachwuerfeln, ohne nochmal zu laden.
 api.get('/splashes', cache(60), (req, res) => {
-  res.json({ splashes: activeSplashes().map((s) => s.text) });
+  res.json({ splashes: activeSplashes() });
 });
 
 // --- freitext-seiten --------------------------------------------------------

@@ -1,0 +1,7 @@
+wenn ein post mehrere audios hat und mann auf dem cover in eine clickt spielen in der detail seite alle gleichzeitig ab.
+
+die seite braucht sehr lange zum laden auf mobile, teils vermutlich auch dem zu verschulden das ich es einfach direkt über mein wlan laufen habe (also port freigegeben und dann auf dem handy ip von meinem pc und port) aber auch die bilder selbst brauchen ziehmlich lange um zu laden fazit > ladegeschwindigkeiten verbessern
+
+teilweise haben pages die am pc keinen overflow haben auf mobile einen auf der startseite zb kann man weiterscrollen als gedacht ist (vermutung wegen dem hintergrund weil der evtl fest auf eine höhe von 1080 gesetzt ist oder so)
+
+wrapping system für splash texte ändern. standard mäßig werden die so gewrapped wie es ursprünglich war man kann es aber ausmachen. das ist hauptsächlich weil man auf mobile sonst die meisten nicht ordentlich lesen kann ich wollte das feature aber dafür haben damit ich manche machen kann die unnötig lang sind und absichtlich über den screen gehen. also standard mäßig zeilenumbruch basierend auf der breite des bildschirms mit der möglichkeit für einzelne splashes automatische zeilenumbrüche auszuschalten und sie über den bildschirmrand gehen zu lassen.

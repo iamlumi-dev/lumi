@@ -30,6 +30,8 @@ const ADDED_COLUMNS = [
   ['users', 'totp_secret',    'TEXT'],
   ['users', 'totp_pending',   'TEXT'],
   ['users', 'totp_last_step', 'INTEGER'],
+  // splash-texte: zeilenumbruch standardmaessig aktiv
+  ['splashes', 'wrap',        'INTEGER NOT NULL DEFAULT 1'],
 ];
 
 const tableExists = (name) =>

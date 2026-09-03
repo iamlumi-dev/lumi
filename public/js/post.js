@@ -30,6 +30,24 @@
   }
 
   /* =====================================================================
+     medien-koordination: nur ein medium (audio/video) spielt gleichzeitig
+     ===================================================================== */
+  let activeMedia = null;
+
+  function registerActive(media) {
+    if (activeMedia && activeMedia !== media) {
+      activeMedia.pause();
+    }
+    activeMedia = media;
+  }
+
+  function unregisterActive(media) {
+    if (activeMedia === media) {
+      activeMedia = null;
+    }
+  }
+
+  /* =====================================================================
      audio
      =====================================================================
      eigener player, weil die nativen controls hellgrau-weiss sind und die
@@ -256,16 +274,22 @@
     });
 
     audio.addEventListener('play', () => {
+      registerActive(audio);
       toggle.textContent = 'pause';
       toggle.setAttribute('aria-label', 'pause');
       ensureGraph();
       startDrawing();
     });
     audio.addEventListener('pause', () => {
+      unregisterActive(audio);
       toggle.textContent = 'play';
       toggle.setAttribute('aria-label', 'play');
     });
-    audio.addEventListener('ended', () => { paintWave(); sync(); });
+    audio.addEventListener('ended', () => {
+      unregisterActive(audio);
+      paintWave();
+      sync();
+    });
     audio.addEventListener('loadedmetadata', () => {
       sync();
       paintWave();
@@ -289,14 +313,19 @@
     return box;
   }
 
-  function mediaFigure(m) {
+  function mediaFigure(m, startAt = null) {
     const fig = el('figure');
 
     if (m.kind === 'image') {
       const img = el('img');
-      img.src = m.src;
+      img.src = m.thumb || m.src;
+      if (m.thumb) {
+        img.srcset = `${m.thumb} 1200w, ${m.src} 2400w`;
+        img.sizes = '(max-width: 720px) 100vw, 720px';
+      }
       img.alt = m.alt || '';
       img.loading = 'lazy';
+      img.decoding = 'async';
       fig.appendChild(img);
     } else if (m.kind === 'video') {
       const v = el('video');
@@ -305,10 +334,11 @@
       v.controls = true;
       v.playsInline = true;
       v.preload = 'metadata';
+      v.addEventListener('play', () => registerActive(v));
+      v.addEventListener('pause', () => unregisterActive(v));
       fig.appendChild(v);
     } else if (m.kind === 'audio') {
-      const t = Number(new URLSearchParams(location.search).get('t'));
-      fig.appendChild(audioPlayer(m.src, isFinite(t) && t > 0 ? t : null, m.waveform || null));
+      fig.appendChild(audioPlayer(m.src, startAt, m.waveform || null));
     } else if (m.kind === 'youtube') {
       fig.appendChild(youtubeEmbed(m));
     }
@@ -346,7 +376,23 @@
     // medien in der reihenfolge, die im admin gesetzt wurde
     if (post.media.length) {
       const box = el('div', 'post-media');
-      post.media.forEach((m) => box.appendChild(mediaFigure(m)));
+      const searchParams = new URLSearchParams(location.search);
+      const targetT = Number(searchParams.get('t'));
+      const targetAudio = searchParams.get('audio');
+      const hasValidT = isFinite(targetT) && targetT >= 0;
+
+      // Welches Audio soll anspringen?
+      // Wenn targetAudio gesetzt ist, genau das.
+      // Sonst (falls nur ?t=... uebergeben wurde): nur das erste Audio.
+      const firstAudio = post.media.find((m) => m.kind === 'audio');
+      const audioToStart = targetAudio
+        ? post.media.find((m) => m.kind === 'audio' && String(m.id) === targetAudio)
+        : firstAudio;
+
+      post.media.forEach((m) => {
+        const shouldStart = hasValidT && audioToStart && m === audioToStart;
+        box.appendChild(mediaFigure(m, shouldStart ? targetT : null));
+      });
       wrap.appendChild(box);
     }
 

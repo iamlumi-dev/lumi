@@ -179,6 +179,7 @@ CREATE TABLE IF NOT EXISTS splashes (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   text       TEXT    NOT NULL,
   active     INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+  wrap       INTEGER NOT NULL DEFAULT 1 CHECK (wrap IN (0,1)),
   created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

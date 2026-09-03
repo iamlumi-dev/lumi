@@ -78,6 +78,7 @@ window.__bgInstance = new p5((s) => {
   s.setup = () => {
     const c = s.createCanvas(s.windowWidth, s.windowHeight);
     c.parent('p5-bg-container');
+    c.elt.style.display = 'block';
     s.strokeJoin(s.BEVEL);
     s.strokeCap(s.SQUARE);
     s.noFill();

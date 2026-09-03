@@ -1201,14 +1201,16 @@
     async render(into) {
       const { splashes } = await api('/admin/splashes');
       into.appendChild(el('h2', { text: 'splash texts' }));
-      into.appendChild(el('p', { class: 'dim', text: 'the line under the title on the home page. one is picked at random on every visit, and clicking it rolls another. no length limit, and the text never wraps — it just runs off the edge. shift+enter puts in a line break.' }));
+      into.appendChild(el('p', { class: 'dim', text: 'the line under the title on the home page. one is picked at random on every visit, and clicking it rolls another. by default splashes wrap to the screen width; uncheck "wrap" to let extra-long splashes run off the screen edge. shift+enter puts in a line break.' }));
 
       // die eingabezeile steht oben: hier wird viel angelegt und selten
       // in der bestehenden liste gesucht.
       const fresh = grow(el('textarea', { name: 'newSplash', rows: 1, placeholder: 'a new splash' }));
+      const freshWrap = el('input', { type: 'checkbox' });
+      freshWrap.checked = true;
       const addSplash = guard(async () => {
         if (!fresh.value.trim()) return;
-        await api('/admin/splashes', { method: 'POST', body: { text: fresh.value } });
+        await api('/admin/splashes', { method: 'POST', body: { text: fresh.value, wrap: freshWrap.checked } });
         toast('added');
         show('splashes');
       });
@@ -1219,6 +1221,7 @@
 
       into.appendChild(el('div', { class: 'form-row' }, [
         fresh,
+        el('label', { class: 'check' }, [freshWrap, el('span', { text: 'wrap' })]),
         el('button', { type: 'button', class: 'roomy', text: 'add', onclick: addSplash }),
       ]));
 
@@ -1227,16 +1230,20 @@
         const text = grow(el('textarea', { name: 'text', rows: 1 }));
         text.value = splash.text;
 
+        const wrap = el('input', { type: 'checkbox' });
+        wrap.checked = splash.wrap !== false;
+
         const active = el('input', { type: 'checkbox' });
         active.checked = splash.active;
 
         const save = guard(async () => {
           await api(`/admin/splashes/${splash.id}`, {
-            method: 'PATCH', body: { text: text.value, active: active.checked },
+            method: 'PATCH', body: { text: text.value, active: active.checked, wrap: wrap.checked },
           });
           toast('saved');
         });
         text.addEventListener('change', save);
+        wrap.addEventListener('change', save);
         active.addEventListener('change', save);
         // auch hier: enter speichert, shift+enter bricht um
         text.addEventListener('keydown', (e) => {
@@ -1245,6 +1252,7 @@
 
         rows.appendChild(el('div', { class: `row${splash.active ? '' : ' muted'}` }, [
           el('div', { class: 'row-main' }, [text]),
+          el('label', { class: 'check' }, [wrap, el('span', { text: 'wrap' })]),
           el('label', { class: 'check' }, [active, el('span', { text: 'active' })]),
           el('button', { type: 'button', class: 'mini', text: 'delete',
             onclick: guard(async () => {

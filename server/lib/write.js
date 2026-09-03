@@ -279,17 +279,18 @@ export const reorderLinks = db.transaction((pageSlug, ids) => {
 /* ---- splashes ------------------------------------------------------------- */
 
 export function listSplashes() {
-  return db.prepare('SELECT id, text, active FROM splashes ORDER BY id DESC').all()
-    .map((s) => ({ id: s.id, text: s.text, active: !!s.active }));
+  return db.prepare('SELECT id, text, active, wrap FROM splashes ORDER BY id DESC').all()
+    .map((s) => ({ id: s.id, text: s.text, active: !!s.active, wrap: s.wrap !== 0 }));
 }
 
-export function createSplash(text) {
-  return db.prepare('INSERT INTO splashes (text) VALUES (?)').run(text).lastInsertRowid;
+export function createSplash(text, wrap = 1) {
+  return db.prepare('INSERT INTO splashes (text, wrap) VALUES (?, ?)')
+    .run(text, wrap ? 1 : 0).lastInsertRowid;
 }
 
 export function updateSplash(id, fields) {
-  return db.prepare('UPDATE splashes SET text = ?, active = ? WHERE id = ?')
-    .run(fields.text, fields.active, id).changes > 0;
+  return db.prepare('UPDATE splashes SET text = ?, active = ?, wrap = ? WHERE id = ?')
+    .run(fields.text, fields.active ? 1 : 0, fields.wrap ? 1 : 0, id).changes > 0;
 }
 
 export function deleteSplash(id) {

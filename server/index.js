@@ -104,10 +104,11 @@ app.use('/admin', requireAuth);
 
 // ---- statische dateien ----------------------------------------------------
 // hochgeladene medien: lang cachen, aber niemals als html/script ausliefern.
+// auch im entwicklungsmodus/heimnetz sinnvoll gecacht (dateinamen sind hashes/zeitstempel).
 app.use(
   '/uploads',
   express.static(config.uploadsDir, {
-    maxAge: config.isProd ? '30d' : 0,
+    maxAge: config.isProd ? '30d' : '7d',
     index: false,
     dotfiles: 'ignore',
     setHeaders: (res) => {
@@ -119,7 +120,7 @@ app.use(
 
 app.use(
   express.static(config.publicDir, {
-    maxAge: config.isProd ? '1h' : 0,
+    maxAge: config.isProd ? '1h' : '10m',
     extensions: ['html'],
     index: 'index.html',
     dotfiles: 'ignore',
